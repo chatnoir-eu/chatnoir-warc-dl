@@ -61,6 +61,7 @@ results_dataset = dataset.map(lambda a: modified_model.predict_step((a,)))  # to
 
 # todo filter results
 
+# todo output original-sized image
 
 for element in results_dataset.as_numpy_iterator():
     print(element)
