@@ -46,13 +46,21 @@ dataset = range_dataset.interleave(lambda i: tf.py_function(func=get_individual_
                                    cycle_length=len(individual_datasets), deterministic=False,
                                    num_parallel_calls=tf.data.AUTOTUNE)
 
-dataset = dataset.map(lambda image, url: ((image, url),))
+dataset = dataset.map(lambda image, url: ((image, url),))  # todo really need tuple construction?
 
 dataset = dataset.prefetch(tf.data.AUTOTUNE)
-dataset = dataset.batch(10)  # todo make batchsize configurable
+dataset = dataset.batch(3)  # todo make batchsize configurable
 
 # todo we need to export - as a callback?
 
-prediction = modified_model.predict(dataset)
+results_dataset = dataset.map(lambda a: modified_model.predict_step((a,)))  # todo really need tuple constructor
+# todo ############### dont map predict_step, but rather the direct model() func - maybe we then dont even need the weird model wrapper for input propagation
+# todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast?
 
-print(prediction["url"])
+
+# todo filter results
+
+
+for element in results_dataset.as_numpy_iterator():
+    print(element)
+# todo save to file(s)
