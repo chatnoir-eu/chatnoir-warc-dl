@@ -16,12 +16,13 @@ def gen(ending):
         # print("            " if ending=="jpg" else "",filename)
         sleep(1 if bool(["jpg", "png"].index(ending)) != (i <= 2) else 1.7)  # simulate IO slowness
         resized = tf.image.resize(image / 255., size, antialias=True)
-        yield resized, filename
+        yield tf.RaggedTensor.from_tensor(image, ragged_rank=2), resized, filename
 
 
 def ds(ending):
     return tf.data.Dataset.from_generator(lambda: gen(ending), output_signature=(
-    tf.TensorSpec(shape=size + (3,), dtype=tf.float32), tf.TensorSpec(shape=(), dtype=tf.string)))
+        tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),
+        tf.TensorSpec(shape=size + (3,), dtype=tf.float32), tf.TensorSpec(shape=(), dtype=tf.string)))
 
 
 individual_datasets = [ds(ending) for ending in ["jpg", "png"]]
@@ -40,18 +41,25 @@ dataset = range_dataset.interleave(lambda i: tf.py_function(func=get_individual_
 dataset = dataset.prefetch(tf.data.AUTOTUNE)
 dataset = dataset.batch(3)  # todo make batchsize configurable
 
-def prediction(image, url):
-    return model(image, training=False), image, url
+
+def prediction(image, resized, url):
+    return model(resized, training=False), image, url
 
 
-results_dataset = dataset.map(prediction)  # todo optimize performance
+dataset = dataset.map(prediction)  # todo optimize performance
 # todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast?
-
 
 # todo filter results
 
-# todo output original-sized image
+dataset = dataset.unbatch()
 
-for element in results_dataset.as_numpy_iterator():
+
+def unpack(pred, image, url):
+    return pred, image.to_tensor(), url
+
+
+dataset = dataset.map(unpack)  # todo optimize performance
+
+for element in dataset.as_numpy_iterator():
     print(element)
 # todo save to file(s)
