@@ -46,13 +46,17 @@ dataset = dataset.prefetch(tf.data.AUTOTUNE)
 dataset = dataset.batch(BATCHSIZE)
 
 
+# strategy = tf.distribute.MirroredStrategy()
+# dataset = strategy.experimental_distribute_dataset(dataset) #todo test by using strategy.run() later
+
+
 def predict(image, resized, url):
     prediction = model(resized, training=False)
     return prediction, image, url
 
 
-dataset = dataset.map(predict)  # todo optimize performance
-# todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast?
+dataset = dataset.map(predict, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
+# todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast? test if GPU makes it faster
 
 dataset = dataset.unbatch()
 
@@ -68,7 +72,7 @@ def ragged_to_tensor(prediction, image, url):
     return prediction, image.to_tensor(), url
 
 
-dataset = dataset.map(ragged_to_tensor)  # todo optimize performance
+dataset = dataset.map(ragged_to_tensor, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
 
 def export(prediction, image, url):
