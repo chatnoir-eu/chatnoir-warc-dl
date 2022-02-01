@@ -49,9 +49,14 @@ def prediction(image, resized, url):
 dataset = dataset.map(prediction)  # todo optimize performance
 # todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast?
 
-# todo filter results
-
 dataset = dataset.unbatch()
+
+
+def filter(pred, image, url):
+    return tf.reshape(pred > .9, ())
+
+
+dataset = dataset.filter(filter)
 
 
 def unpack(pred, image, url):
