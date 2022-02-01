@@ -8,7 +8,10 @@ from tensorflow import keras
 model = keras.models.load_model(
     "models/chollet.h5")  # https://github.com/samon11/meme-classifier/blob/master/chollet.h5
 
+BATCHSIZE = 3
+
 size = (150, 150)
+
 
 def gen(ending):
     for i in range(5):
@@ -40,7 +43,7 @@ dataset = range_dataset.interleave(lambda i: tf.py_function(func=get_individual_
                                    num_parallel_calls=tf.data.AUTOTUNE)
 
 dataset = dataset.prefetch(tf.data.AUTOTUNE)
-dataset = dataset.batch(3)  # todo make batchsize configurable
+dataset = dataset.batch(BATCHSIZE)
 
 
 def predict(image, resized, url):
