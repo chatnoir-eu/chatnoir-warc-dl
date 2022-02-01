@@ -25,7 +25,8 @@ def gen(ending):
         image = iio.imread(filename, as_gray=False, pilmode="RGB")
         # print("            " if ending=="jpg" else "",filename)
         sleep(1 if bool(["jpg", "png"].index(ending)) != (i <= 2) else 1.7)  # simulate IO slowness
-        yield tf.image.resize(image, size, antialias=True), filename
+        resized = tf.image.resize(image / 255., size, antialias=True)
+        yield resized, filename
 
 
 def ds(ending):
