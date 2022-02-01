@@ -1,3 +1,5 @@
+from time import sleep
+
 import imageio as iio
 import tensorflow as tf
 from tensorflow import keras
@@ -17,11 +19,12 @@ outputs = {'image': input_image,
            }
 modified_model = keras.Model(inputs=[input_image, input_url], outputs=outputs)
 
-
 def gen(ending):
     for i in range(5):
         filename = f"data/test{i}.{ending}"
         image = iio.imread(filename, as_gray=False, pilmode="RGB")
+        # print("            " if ending=="jpg" else "",filename)
+        sleep(1 if bool(["jpg", "png"].index(ending)) != (i <= 2) else 1.7)  # simulate IO slowness
         yield tf.image.resize(image, size, antialias=True), filename
 
 
