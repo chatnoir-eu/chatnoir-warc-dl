@@ -1,4 +1,4 @@
-import matplotlib.image
+import imageio as iio
 import tensorflow as tf
 from tensorflow import keras
 
@@ -18,26 +18,38 @@ outputs = {'image': input_image,
 modified_model = keras.Model(inputs=[input_image, input_url], outputs=outputs)
 
 
-def gen():
-    # todo this is just a dummy
-    image = matplotlib.image.imread("data/dummy.jpg")
-    for _ in range(100):
-        yield tf.image.resize(image, size, antialias=True), "dummy.jpg"
+def gen(ending):
+    for i in range(5):
+        filename = f"data/test{i}.{ending}"
+        image = iio.imread(filename, as_gray=False, pilmode="RGB")
+        yield tf.image.resize(image, size, antialias=True), filename
 
 
-dataset = tf.data.Dataset.from_generator(gen, output_signature=(tf.TensorSpec(shape=size + (3,), dtype=tf.float32),
-                                                                tf.TensorSpec(shape=(), dtype=tf.string)))
+def ds(ending):
+    return tf.data.Dataset.from_generator(lambda: gen(ending), output_signature=(
+    tf.TensorSpec(shape=size + (3,), dtype=tf.float32), tf.TensorSpec(shape=(), dtype=tf.string)))
+
+
+individual_datasets = [ds(ending) for ending in ["jpg", "png"]]
+
+
+def get_individual_dataset(i):
+    return individual_datasets[i]
+
+
+range_dataset = tf.data.Dataset.range(len(individual_datasets))
+dtype = tf.data.DatasetSpec.from_value(individual_datasets[0])
+dataset = range_dataset.interleave(lambda i: tf.py_function(func=get_individual_dataset, inp=[i], Tout=dtype),
+                                   cycle_length=len(individual_datasets), deterministic=False,
+                                   num_parallel_calls=tf.data.AUTOTUNE)
 
 dataset = dataset.map(lambda image, url: ((image, url),))
 
-# todo use https://www.tensorflow.org/guide/data_performance#parallelizing_data_extraction
-# todo use https://www.tensorflow.org/tutorials/distribute/input
 dataset = dataset.prefetch(tf.data.AUTOTUNE)
 dataset = dataset.batch(10)  # todo make batchsize configurable
 
 # todo we need to export - as a callback?
 
-
 prediction = modified_model.predict(dataset)
 
-print(prediction["prediction"])
+print(prediction["url"])
