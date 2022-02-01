@@ -9,16 +9,6 @@ model = keras.models.load_model(
 
 size = (150, 150)
 
-input_image = keras.Input(type_spec=tf.TensorSpec(shape=(None,) + size + (3,), dtype=tf.float32))
-input_url = keras.Input(type_spec=tf.TensorSpec(shape=(None,), dtype=tf.string))
-pred = model(input_image, training=False)
-
-outputs = {'image': input_image,
-           'url': input_url,
-           'prediction': pred
-           }
-modified_model = keras.Model(inputs=[input_image, input_url], outputs=outputs)
-
 def gen(ending):
     for i in range(5):
         filename = f"data/test{i}.{ending}"
@@ -47,15 +37,14 @@ dataset = range_dataset.interleave(lambda i: tf.py_function(func=get_individual_
                                    cycle_length=len(individual_datasets), deterministic=False,
                                    num_parallel_calls=tf.data.AUTOTUNE)
 
-dataset = dataset.map(lambda image, url: ((image, url),))  # todo really need tuple construction?
-
 dataset = dataset.prefetch(tf.data.AUTOTUNE)
 dataset = dataset.batch(3)  # todo make batchsize configurable
 
-# todo we need to export - as a callback?
+def prediction(image, url):
+    return model(image, training=False), image, url
 
-results_dataset = dataset.map(lambda a: modified_model.predict_step((a,)))  # todo really need tuple constructor
-# todo ############### dont map predict_step, but rather the direct model() func - maybe we then dont even need the weird model wrapper for input propagation
+
+results_dataset = dataset.map(prediction)  # todo optimize performance
 # todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast?
 
 
