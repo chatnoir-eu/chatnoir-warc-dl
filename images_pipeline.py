@@ -1,3 +1,4 @@
+import base64
 from time import sleep
 
 import imageio as iio
@@ -42,29 +43,38 @@ dataset = dataset.prefetch(tf.data.AUTOTUNE)
 dataset = dataset.batch(3)  # todo make batchsize configurable
 
 
-def prediction(image, resized, url):
-    return model(resized, training=False), image, url
+def predict(image, resized, url):
+    prediction = model(resized, training=False)
+    return prediction, image, url
 
 
-dataset = dataset.map(prediction)  # todo optimize performance
+dataset = dataset.map(predict)  # todo optimize performance
 # todo can this strange mapping instead of prediction technique be used with distribution strategies? is it fast?
 
 dataset = dataset.unbatch()
 
 
-def filter(pred, image, url):
-    return tf.reshape(pred > .9, ())
+def filter(prediction, image, url):
+    return tf.reshape(prediction > .9, ())
 
 
 dataset = dataset.filter(filter)
 
 
-def unpack(pred, image, url):
-    return pred, image.to_tensor(), url
+def ragged_to_tensor(prediction, image, url):
+    return prediction, image.to_tensor(), url
 
 
-dataset = dataset.map(unpack)  # todo optimize performance
+dataset = dataset.map(ragged_to_tensor)  # todo optimize performance
 
-for element in dataset.as_numpy_iterator():
-    print(element)
-# todo save to file(s)
+
+def export(prediction, image, url):
+    prediction = prediction[0]
+    print(url.decode("utf-8"), prediction)
+    iio.imwrite(f"data/out/{base64.b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", image)
+
+
+for data in dataset.as_numpy_iterator():
+    export(*data)
+
+# todo offer alternative dataset saving method
