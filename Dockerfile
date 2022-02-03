@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN curl https://dlcdn.apache.org/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.gz --output hadoop-2.10.1.tar.gz
 RUN tar -zxvf hadoop-2.10.1.tar.gz
-RUN cp -a hadoop-2.10.1/. /
+RUN cp -a hadoop-2.10.1/. / # todo optimize size (remove original tar.gz and extraction directory)
 
 COPY hadoop /etc/hadoop/
 
