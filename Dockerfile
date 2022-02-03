@@ -1,7 +1,7 @@
 FROM nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu18.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-	software-properties-common && apt-get install -y default-jre
+	software-properties-common default-jre curl
 
 RUN curl https://dlcdn.apache.org/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.gz --output hadoop-2.10.1.tar.gz
 RUN tar -zxvf hadoop-2.10.1.tar.gz
