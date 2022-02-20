@@ -3,6 +3,7 @@ import base64
 from time import sleep
 
 import imageio as iio
+import numpy as np
 import requests
 import tensorflow as tf
 
@@ -47,10 +48,7 @@ class ImagePipeline(Pipeline, abc.ABC):
 
         return generator_factory
 
-    def filter(self, prediction, *args):
-        return tf.reshape(prediction > .9, ())
-
     def export(self, prediction, original_image, url):
-        prediction = prediction[0]
+        prediction = np.reshape(prediction, ())
         print(url.decode("utf-8"), prediction)
         iio.imwrite(f"data/out/{base64.b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", original_image)
