@@ -19,8 +19,6 @@ class Pipeline(abc.ABC):
 
         self.BATCHSIZE = 3
 
-        self.size = (150, 150)
-
         self.model = self.get_model()
         self.dataset = self.get_dataset()
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)

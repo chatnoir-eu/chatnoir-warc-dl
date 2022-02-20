@@ -11,6 +11,10 @@ from pipelines.general_pipeline import Pipeline
 
 
 class ImagePipeline(Pipeline, abc.ABC):
+    @property
+    @abc.abstractmethod
+    def size(self):
+        pass
 
     def __init__(self):
         super().__init__()
