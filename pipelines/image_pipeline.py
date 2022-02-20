@@ -14,15 +14,16 @@ class ImagePipeline(Pipeline, abc.ABC):
     def __init__(self):
         super().__init__()
 
-        def ragged_to_tensor(prediction, image, url):
-            return prediction, image.to_tensor(), url
+        def ragged_to_tensor(prediction, original_image, url):
+            return prediction, original_image.to_tensor(), url
 
         self.dataset = self.dataset.map(ragged_to_tensor, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
     def get_dataset(self):
         return tf.data.Dataset.from_generator(self.generator, output_signature=(
-            tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),
-            tf.TensorSpec(shape=self.size + (3,), dtype=tf.float32), tf.TensorSpec(shape=(), dtype=tf.string)))
+            tf.TensorSpec(shape=self.size + (3,), dtype=tf.float32),  # resized_image
+            tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),  # original_image
+            tf.TensorSpec(shape=(), dtype=tf.string)))  # url
 
     def oneToMultipleFactory(self):
         """
@@ -32,23 +33,24 @@ class ImagePipeline(Pipeline, abc.ABC):
         size = self.size
 
         def oneToMultiple(i):
-            def get_result(filename, size):
-                r = requests.get(filename, allow_redirects=True)
+            def get_result(url, size):
+                r = requests.get(url, allow_redirects=True)
                 image = tf.io.decode_image(r.content, channels=3, expand_animations=False)
                 sleep(5)  # simulate IO slowness
                 resized = tf.image.resize(tf.cast(image, tf.float32) / 255., size, antialias=True)
-                return tf.RaggedTensor.from_tensor(image, ragged_rank=2), resized, filename
+                original_image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
+                return resized, original_image, url
 
             for ending in ["png", "jpg"]:
-                filename = f"https://www2.informatik.hu-berlin.de/~deckersn/data/test{i % 5}.{ending}"
-                yield get_result(filename, size)
+                url = f"https://www2.informatik.hu-berlin.de/~deckersn/data/test{i % 5}.{ending}"
+                yield get_result(url, size)
 
         return oneToMultiple
 
-    def filter(self, prediction, image, url):
+    def filter(self, prediction, *args):
         return tf.reshape(prediction > .9, ())
 
-    def export(self, prediction, image, url):
+    def export(self, prediction, original_image, url):
         prediction = prediction[0]
         print(url.decode("utf-8"), prediction)
-        iio.imwrite(f"data/out/{base64.b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", image)
+        iio.imwrite(f"data/out/{base64.b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", original_image)

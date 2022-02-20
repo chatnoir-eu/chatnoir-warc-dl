@@ -67,9 +67,9 @@ class Pipeline(abc.ABC):
     def get_dataset(self):
         pass
 
-    def predict(self, image, resized, url):
-        prediction = self.model(resized, training=False)
-        return prediction, image, url
+    def predict(self, model_input, *args):
+        prediction = self.model(model_input, training=False)
+        return prediction, *args
 
     @abc.abstractmethod
     def filter(self, *args):
