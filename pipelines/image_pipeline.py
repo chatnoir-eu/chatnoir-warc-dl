@@ -20,19 +20,19 @@ class ImagePipeline(Pipeline, abc.ABC):
         self.dataset = self.dataset.map(ragged_to_tensor, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
     def get_dataset(self):
-        return tf.data.Dataset.from_generator(self.generator, output_signature=(
+        return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
             tf.TensorSpec(shape=self.size + (3,), dtype=tf.float32),  # resized_image
             tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),  # original_image
             tf.TensorSpec(shape=(), dtype=tf.string)))  # url
 
-    def oneToMultipleFactory(self):
+    def get_generator_factory(self):
         """
         return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first
         :return:
         """
         size = self.size
 
-        def oneToMultiple(i):
+        def generator_factory(i):
             def get_result(url, size):
                 r = requests.get(url, allow_redirects=True)
                 image = tf.io.decode_image(r.content, channels=3, expand_animations=False)
@@ -45,7 +45,7 @@ class ImagePipeline(Pipeline, abc.ABC):
                 url = f"https://www2.informatik.hu-berlin.de/~deckersn/data/test{i % 5}.{ending}"
                 yield get_result(url, size)
 
-        return oneToMultiple
+        return generator_factory
 
     def filter(self, prediction, *args):
         return tf.reshape(prediction > .9, ())

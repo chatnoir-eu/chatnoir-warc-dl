@@ -43,7 +43,7 @@ class Pipeline(abc.ABC):
             self.export(*data)
 
     @abc.abstractmethod
-    def oneToMultipleFactory(self):
+    def get_generator_factory(self):
         """
         return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first
         :return:
@@ -53,10 +53,10 @@ class Pipeline(abc.ABC):
     def target(self):
         rdd = self.sc.parallelize(range(32), 32)
         acc = self.acc
-        rdd.flatMap(self.oneToMultipleFactory()).foreach(lambda x: acc.add([x]))
+        rdd.flatMap(self.get_generator_factory()).foreach(lambda x: acc.add([x]))
         self.q.put(None)
 
-    def generator(self):
+    def driver_generator(self):
         while True:
             elem = self.q.get()
             if elem is None:
