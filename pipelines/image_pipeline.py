@@ -14,10 +14,11 @@ from pipelines.general_pipeline import Pipeline
 
 class ImagePipeline(Pipeline, abc.ABC):
 
-    def __init__(self, image_size, out_dir):
+    def __init__(self, image_size, out_dir, max_content_length):
         self.image_size = image_size
         self.out_dir = out_dir
         os.makedirs(self.out_dir, exist_ok=True)
+        self.max_content_length = max_content_length
 
         super().__init__()
 
@@ -44,6 +45,7 @@ class ImagePipeline(Pipeline, abc.ABC):
         :return:
         """
         image_size = self.image_size
+        max_content_length = self.max_content_length
         distributed_filter = self.get_distributed_filter()
         BUCKET_NAME = self.BUCKET_NAME
         AWS_ACCESS_KEY_ID = self.AWS_ACCESS_KEY_ID
@@ -54,8 +56,7 @@ class ImagePipeline(Pipeline, abc.ABC):
         def generator_factory(file_name):
             s3_client = create_s3_client(AWS_ACCESS_KEY_ID, AWS_SECRET, ENDPOINT_URL)
             stream = get_file_stream(s3_client, BUCKET_NAME, file_name)
-            for record in ArchiveIterator(stream,
-                                          max_content_length=512000 * 4):  # todo max_content_length should be configurable
+            for record in ArchiveIterator(stream, max_content_length=max_content_length):
                 try:
                     if record.headers is None:
                         continue

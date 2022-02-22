@@ -15,9 +15,10 @@ class MemePipeline(ImagePipeline):
     """
 
     def __init__(self):
-        image_size = (150, 150)
+        image_size = (150, 150)  # rescale images to the format accepted by the meme classifier model
         out_dir = "data/meme_classifier/out/"
-        super().__init__(image_size=image_size, out_dir=out_dir)
+        max_content_length = 4000000  # 4MB maximum image size
+        super().__init__(image_size=image_size, out_dir=out_dir, max_content_length=max_content_length)
 
     def get_model(self):
         model_source = "https://github.com/samon11/meme-classifier/raw/master/chollet.h5"
