@@ -31,11 +31,11 @@ class MemePipeline(ImagePipeline):
         return model
 
     def get_distributed_filter(self):
-        def filter(image):
+        def distributed_filter(image):
             size_x, size_y = image.shape
             return 150 <= size_x <= 1000 and 150 <= size_y <= 1000  # typical meme image size
 
-        return filter
+        return distributed_filter
 
     def filter(self, prediction, *args):
         return tf.reshape(prediction > .9, ())
