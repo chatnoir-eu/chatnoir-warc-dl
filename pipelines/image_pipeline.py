@@ -4,16 +4,17 @@ from time import sleep
 
 import imageio as iio
 import numpy as np
-import requests
 import tensorflow as tf
+from fastwarc.warc import ArchiveIterator
 
+from helpers import get_file_stream, create_s3_client
 from pipelines.general_pipeline import Pipeline
 
 
 class ImagePipeline(Pipeline, abc.ABC):
     @property
     @abc.abstractmethod
-    def size(self):
+    def image_size(self):
         pass
 
     def __init__(self):
@@ -26,33 +27,53 @@ class ImagePipeline(Pipeline, abc.ABC):
 
     def get_dataset(self):
         return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
-            tf.TensorSpec(shape=self.size + (3,), dtype=tf.float32),  # resized_image
+            tf.TensorSpec(shape=self.image_size + (3,), dtype=tf.float32),  # resized_image
             tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),  # original_image
             tf.TensorSpec(shape=(), dtype=tf.string)))  # url
 
+    # todo add additional overridable filter based on image size
     def get_generator_factory(self):
         """
         return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first
         :return:
         """
-        size = self.size
+        image_size = self.image_size
+        BUCKET_NAME = self.BUCKET_NAME
+        AWS_ACCESS_KEY_ID = self.AWS_ACCESS_KEY_ID
+        AWS_SECRET = self.AWS_SECRET
+        ENDPOINT_URL = self.ENDPOINT_URL
+        acceptable_types = ['image/jpeg', 'image/gif', 'image/bmp', 'image/png']
 
-        def generator_factory(i):
-            def get_result(url, size):
-                r = requests.get(url, allow_redirects=True)
-                image = tf.io.decode_image(r.content, channels=3, expand_animations=False)
-                sleep(5)  # simulate IO slowness
-                resized = tf.image.resize(tf.cast(image, tf.float32) / 255., size, antialias=True)
-                original_image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
-                return resized, original_image, url
-
-            for ending in ["png", "jpg"]:
-                url = f"https://www2.informatik.hu-berlin.de/~deckersn/data/test{i % 5}.{ending}"
-                yield get_result(url, size)
+        def generator_factory(file_name):
+            s3_client = create_s3_client(AWS_ACCESS_KEY_ID, AWS_SECRET, ENDPOINT_URL)
+            stream = get_file_stream(s3_client, BUCKET_NAME, file_name)
+            for record in ArchiveIterator(stream,
+                                          max_content_length=512000 * 4):  # todo max_content_length should be configurable
+                try:
+                    if record.headers is None:
+                        continue
+                    if record.http_headers is None:
+                        continue
+                    if record.headers['WARC-Type'] == 'response' and record.content_length >= 128:
+                        content_type = str(record.http_headers.get('Content-Type')).lower()
+                        if content_type.startswith('image/'):
+                            if any(content_type.startswith(t) for t in acceptable_types):
+                                url = str(record.headers['WARC-Target-URI'])
+                                content = record.reader.read()
+                                try:
+                                    image = tf.io.decode_image(content, channels=3, expand_animations=False)
+                                except tf.errors.InvalidArgumentError:  # todo assess error rate
+                                    continue
+                                resized = tf.image.resize(tf.cast(image, tf.float32) / 255., image_size, antialias=True)
+                                original_image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
+                                yield resized, original_image, url
+                                sleep(5)  # todo remove ????
+                except:
+                    raise  # todo better: continue
 
         return generator_factory
 
     def export(self, prediction, original_image, url):
         prediction = np.reshape(prediction, ())
         print(url.decode("utf-8"), prediction)
-        iio.imwrite(f"data/out/{base64.b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", original_image)
+        iio.imwrite(f"data/out/{base64.urlsafe_b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", original_image)

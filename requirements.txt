@@ -4,3 +4,5 @@ nltk
 numpy
 imageio
 pyspark
+boto3
+fastwarc
