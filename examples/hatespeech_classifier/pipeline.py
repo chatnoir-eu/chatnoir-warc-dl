@@ -7,8 +7,7 @@ from tensorflow import keras
 from pipelines.text_pipeline import TextPipeline
 
 
-class HatespeechClassifierPipeline(
-    TextPipeline):  # todo we need another example as language classification can also be handled on betaweb directly
+class HatespeechClassifierPipeline(TextPipeline):
     """
     This is an example text classification pipeline based on
     https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english.
