@@ -34,10 +34,10 @@ class ImagePipeline(Pipeline, abc.ABC):
             tf.TensorSpec(shape=(), dtype=tf.string)))  # url
 
     def get_distributed_filter(self):
-        def filter(image):
+        def distributed_filter(image):
             return True
 
-        return filter
+        return distributed_filter
 
     def get_generator_factory(self):
         """
