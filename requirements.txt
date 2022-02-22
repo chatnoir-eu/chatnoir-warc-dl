@@ -1,6 +1,5 @@
 tensorflow
 transformers
-nltk
 numpy
 imageio
 pyspark
