@@ -14,6 +14,10 @@ class MemePipeline(ImagePipeline):
     only serve demonstration purposes.
     """
 
+    def __init__(self):
+        image_size = (150, 150)
+        out_dir = "data/meme_classifier/out/"
+        super().__init__(image_size=image_size, out_dir=out_dir)
 
     def get_model(self):
         model_source = "https://github.com/samon11/meme-classifier/raw/master/chollet.h5"
@@ -26,12 +30,17 @@ class MemePipeline(ImagePipeline):
         model = keras.models.load_model(model_file)
         return model
 
+    def get_distributed_filter(self):
+        def filter(image):
+            size_x, size_y = image.shape
+            return 150 <= size_x <= 1000 and 150 <= size_y <= 1000  # typical meme image size
+
+        return filter
+
     def filter(self, prediction, *args):
         return tf.reshape(prediction > .9, ())
 
 
 if __name__ == "__main__":
-    image_size = (150, 150)
-    out_dir = "data/meme_classifier/out/"
-    p = MemePipeline(image_size, out_dir)
+    p = MemePipeline()
     p.run()

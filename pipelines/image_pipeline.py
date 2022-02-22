@@ -32,13 +32,19 @@ class ImagePipeline(Pipeline, abc.ABC):
             tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),  # original_image
             tf.TensorSpec(shape=(), dtype=tf.string)))  # url
 
-    # todo add additional overridable filter based on image size
+    def get_distributed_filter(self):
+        def filter(image):
+            return True
+
+        return filter
+
     def get_generator_factory(self):
         """
         return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first
         :return:
         """
         image_size = self.image_size
+        distributed_filter = self.get_distributed_filter()
         BUCKET_NAME = self.BUCKET_NAME
         AWS_ACCESS_KEY_ID = self.AWS_ACCESS_KEY_ID
         AWS_SECRET = self.AWS_SECRET
@@ -64,6 +70,8 @@ class ImagePipeline(Pipeline, abc.ABC):
                                 try:
                                     image = tf.io.decode_image(content, channels=3, expand_animations=False)
                                 except tf.errors.InvalidArgumentError:  # todo assess error rate
+                                    continue
+                                if not distributed_filter(image):
                                     continue
                                 resized = tf.image.resize(tf.cast(image, tf.float32) / 255., image_size, antialias=True)
                                 original_image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
