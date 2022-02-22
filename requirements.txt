@@ -6,3 +6,4 @@ imageio
 pyspark
 boto3
 fastwarc
+resiliparse

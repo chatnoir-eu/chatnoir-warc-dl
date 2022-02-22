@@ -9,7 +9,7 @@ import tensorflow as tf
 from fastwarc.warc import ArchiveIterator
 
 from helpers import get_file_stream, create_s3_client
-from pipelines.general_pipeline import Pipeline
+from pipelines.generic_pipeline import Pipeline
 
 
 class ImagePipeline(Pipeline, abc.ABC):
@@ -41,7 +41,7 @@ class ImagePipeline(Pipeline, abc.ABC):
 
     def get_generator_factory(self):
         """
-        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first
+        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first #todo rework this description
         :return:
         """
         image_size = self.image_size
@@ -71,6 +71,7 @@ class ImagePipeline(Pipeline, abc.ABC):
                                 try:
                                     image = tf.io.decode_image(content, channels=3, expand_animations=False)
                                 except tf.errors.InvalidArgumentError:  # todo assess error rate
+                                    # todo maybe this is the problem? https://resiliparse.chatnoir.eu/en/stable/man/parse/http.html#read-chunked-http-payloads
                                     continue
                                 if not distributed_filter(image):
                                     continue

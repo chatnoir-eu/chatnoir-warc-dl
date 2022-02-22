@@ -53,7 +53,7 @@ class Pipeline(abc.ABC):
     @abc.abstractmethod
     def get_generator_factory(self):
         """
-        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first
+        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first#todo rework this description
         :return:
         """
         pass
@@ -83,6 +83,12 @@ class Pipeline(abc.ABC):
         pass
 
     def predict(self, model_input, *args):
+        """
+        For the prediction, the model input is expected to be at the first position in the dataset structure
+        :param model_input:
+        :param args:
+        :return:
+        """
         prediction = self.model(model_input, training=False)
         return prediction, *args
 
