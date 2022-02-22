@@ -9,7 +9,7 @@ from pipelines.image_pipeline import ImagePipeline
 
 class MemePipeline(ImagePipeline):
     """
-    This is an example picture classifier pipeline based on https://github.com/samon11/meme-classifier.
+    This is an example picture classification pipeline based on https://github.com/samon11/meme-classifier.
     Due to the different training image distribution, it will produce extremely noisy results and thus should
     only serve demonstration purposes.
     """
