@@ -27,7 +27,7 @@ class Pipeline(abc.ABC):
         self.q = NonPicklableQueue()
         self.acc = self.sc.accumulator([], ResultsParam(self.q))
 
-        self.BATCHSIZE = 3
+        self.BATCHSIZE = config["tensorflow"]["BATCHSIZE"]
 
         self.model = self.get_model()
         self.dataset = self.get_dataset()
