@@ -7,7 +7,7 @@ from tensorflow import keras
 from pipelines.image_pipeline import ImagePipeline
 
 
-class MemePipeline(ImagePipeline):
+class MemeClassifierPipeline(ImagePipeline):
     """
     This is an example picture classification pipeline based on https://github.com/samon11/meme-classifier.
     Due to the different training image distribution, it will produce extremely noisy results and thus should
@@ -43,5 +43,5 @@ class MemePipeline(ImagePipeline):
 
 
 if __name__ == "__main__":
-    p = MemePipeline()
+    p = MemeClassifierPipeline()
     p.run()
