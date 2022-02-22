@@ -32,7 +32,7 @@ class MemePipeline(ImagePipeline):
 
     def get_distributed_filter(self):
         def distributed_filter(image):
-            size_x, size_y = image.shape
+            size_x, size_y, *_ = image.shape
             return 150 <= size_x <= 1000 and 150 <= size_y <= 1000  # typical meme image size
 
         return distributed_filter
