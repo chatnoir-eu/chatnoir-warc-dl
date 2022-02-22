@@ -14,13 +14,15 @@ class MemePipeline(ImagePipeline):
     only serve demonstration purposes.
     """
 
-    image_size = (150, 150)
 
     def get_model(self):
         model_source = "https://github.com/samon11/meme-classifier/raw/master/chollet.h5"
         model_file = "models/meme_classifier/chollet.h5"
         if not os.path.isfile(model_file):
+            os.makedirs(os.path.dirname(model_file), exist_ok=True)
+            print("Downloading model...")
             urllib.request.urlretrieve(model_source, model_file)
+            print("Model download finished.")
         model = keras.models.load_model(model_file)
         return model
 
@@ -29,5 +31,7 @@ class MemePipeline(ImagePipeline):
 
 
 if __name__ == "__main__":
-    p = MemePipeline()
+    image_size = (150, 150)
+    out_dir = "data/meme_classifier/out/"
+    p = MemePipeline(image_size, out_dir)
     p.run()

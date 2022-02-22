@@ -1,5 +1,6 @@
 import abc
 import base64
+import os
 from time import sleep
 
 import imageio as iio
@@ -12,12 +13,12 @@ from pipelines.general_pipeline import Pipeline
 
 
 class ImagePipeline(Pipeline, abc.ABC):
-    @property
-    @abc.abstractmethod
-    def image_size(self):
-        pass
 
-    def __init__(self):
+    def __init__(self, image_size, out_dir):
+        self.image_size = image_size
+        self.out_dir = out_dir
+        os.makedirs(self.out_dir, exist_ok=True)
+
         super().__init__()
 
         def ragged_to_tensor(prediction, original_image, url):
@@ -76,4 +77,5 @@ class ImagePipeline(Pipeline, abc.ABC):
     def export(self, prediction, original_image, url):
         prediction = np.reshape(prediction, ())
         print(url.decode("utf-8"), prediction)
-        iio.imwrite(f"data/out/{base64.urlsafe_b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg", original_image)
+        iio.imwrite(f"{self.out_dir}/{base64.urlsafe_b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg",
+                    original_image)
