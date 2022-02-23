@@ -26,7 +26,7 @@ class TextPipeline(Pipeline, abc.ABC):
 
     def get_dataset(self):
         return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
-            tf.TensorSpec(shape=(), dtype=tf.string),  # text for classification
+            self.get_tokens_spec(),  # text for classification
             tf.TensorSpec(shape=(), dtype=tf.string),  # text for export
             tf.TensorSpec(shape=(), dtype=tf.string)))  # url
 
@@ -36,6 +36,15 @@ class TextPipeline(Pipeline, abc.ABC):
 
         return distributed_filter
 
+    def get_tokens_spec(self):
+        return tf.TensorSpec(shape=(), dtype=tf.string)
+
+    def get_tokenizer(self):
+        def tokenizer(text):
+            return text
+
+        return tokenizer
+
     def get_generator_factory(self):
         """
         return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first #todo rework this description
@@ -43,6 +52,7 @@ class TextPipeline(Pipeline, abc.ABC):
         """
         max_content_length = self.max_content_length
         distributed_filter = self.get_distributed_filter()
+        tokenizer = self.get_tokenizer()
         BUCKET_NAME = self.BUCKET_NAME
         AWS_ACCESS_KEY_ID = self.AWS_ACCESS_KEY_ID
         AWS_SECRET = self.AWS_SECRET
@@ -89,7 +99,7 @@ class TextPipeline(Pipeline, abc.ABC):
                                     if not distributed_filter(prediction_text):
                                         continue
 
-                                    yield prediction_text, export_text, url
+                                    yield tokenizer(prediction_text), export_text, url
 
                             except (ExecutionTimeout, MemoryLimitExceeded):
                                 continue
