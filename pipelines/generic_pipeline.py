@@ -26,7 +26,7 @@ class Pipeline(abc.ABC):
         conf = SparkConf()
         conf.setAll([("spark.executor.instances", str(config["pyspark"]["SPARK_INSTANCES"])),
                      ("spark.yarn.dist.archives", "/pyspark_venv.tar.gz#environment")])
-        self.sc = SparkContext(master="yarn", appName="spark-test", conf=conf)
+        self.sc = SparkContext(master="yarn", appName="web-archive-keras", conf=conf)
         self.sc.addPyFile("helpers.py")
 
         self.q = NonPicklableQueue()
