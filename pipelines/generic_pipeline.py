@@ -27,12 +27,14 @@ class Pipeline(abc.ABC):
         self.q = NonPicklableQueue()
         self.acc = self.sc.accumulator([], ResultsParam(self.q))
 
-        self.BATCHSIZE = config["tensorflow"]["BATCHSIZE"]
+        self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
 
         self.model = self.get_model()
         self.dataset = self.get_dataset()
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
         self.dataset = self.dataset.batch(self.BATCHSIZE)
+        # todo allow padded_batch
+        # todo does padded_batch also work with ragged images?
 
         self.dataset = self.dataset.map(self.predict, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
