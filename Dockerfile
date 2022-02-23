@@ -17,6 +17,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	python3.8 \
     python3.8-distutils \
+    python3.8-venv \
     wget
 
 # set python3.8 as default
@@ -30,7 +31,7 @@ COPY requirements.txt .
 
 RUN python3 -m pip install -r requirements.txt --no-cache-dir
 
-RUN python3 -m pip install virtualenv venv-pack --no-cache-dir
+RUN python3 -m pip install venv-pack --no-cache-dir
 
 # build environment that will be sent to cluster nodes
 # according to https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
