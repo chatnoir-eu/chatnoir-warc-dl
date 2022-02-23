@@ -36,6 +36,6 @@ RUN apt-get install python3.8-venv \
 # build environment that will be sent to cluster nodes
 # according to https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
 RUN python3 -m venv --system-site-packages /opt/venv \
-    && source /opt/venv/bin/activate \
+    && bash -c "source /opt/venv/bin/activate \
     && venv-pack -o pyspark_venv.tar.gz \
-    && deactivate
+    && deactivate"
