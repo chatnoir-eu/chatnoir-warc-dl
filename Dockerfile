@@ -33,9 +33,11 @@ RUN python3 -m pip install -r requirements.txt --no-cache-dir
 RUN apt-get install python3.8-venv \
     && python3 -m pip install venv-pack --no-cache-dir
 
+COPY requirements-nodes.txt .
 # build environment that will be sent to cluster nodes
 # according to https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
-RUN python3 -m venv --system-site-packages /opt/venv \
+RUN python3 -m venv /opt/venv \
     && bash -c "source /opt/venv/bin/activate \
+    && python3 -m pip install -r requirements-nodes.txt --no-cache-dir \
     && venv-pack -o pyspark_venv.tar.gz \
     && deactivate"

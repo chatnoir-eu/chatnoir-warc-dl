@@ -25,7 +25,7 @@ class Pipeline(abc.ABC):
         os.environ['PYSPARK_PYTHON'] = "./environment/bin/python"
         conf = SparkConf()
         conf.setAll([("spark.executor.instances", str(config["pyspark"]["SPARK_INSTANCES"])),
-                     ("spark.yarn.dist.archives", "pyspark_venv.tar.gz#environment")])
+                     ("spark.yarn.dist.archives", "/pyspark_venv.tar.gz#environment")])
         self.sc = SparkContext(master="yarn", appName="spark-test", conf=conf)
         self.sc.addPyFile("helpers.py")
 
