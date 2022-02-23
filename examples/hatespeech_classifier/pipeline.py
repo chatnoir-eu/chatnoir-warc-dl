@@ -1,3 +1,4 @@
+import resiliparse.parse.lang
 import tensorflow as tf
 from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
 
@@ -44,7 +45,9 @@ class HatespeechClassifierPipeline(TextPipeline):
 
     def get_distributed_filter(self):
         def distributed_filter(text):
-            return len(text) > 1000  # only extract long texts
+            if len(text) < 1000:  # only extract long texts
+                return False
+            return resiliparse.parse.lang.detect_fast(text)[0] == "en"  # only extract english texts
 
         return distributed_filter
 
