@@ -34,7 +34,11 @@ class HatespeechClassifierPipeline(TextPipeline):
     def get_tokenizer(self):
         tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english",
                                                   cache_dir="models/hatespeech_classifier/")
-        return tokenizer
+
+        def tokenizer_func(inp):
+            return tokenizer(inp).data
+
+        return tokenizer_func
 
     def get_distributed_filter(self):
         def distributed_filter(text):
