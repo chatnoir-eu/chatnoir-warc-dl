@@ -37,8 +37,7 @@ class Pipeline(abc.ABC):
         self.model = self.get_model()
         self.dataset = self.get_dataset()
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
-        self.dataset = self.dataset.batch(self.BATCHSIZE)
-        # todo allow padded_batch
+        self.dataset = self.batch(self.dataset, self.BATCHSIZE)
         # todo does padded_batch also work with ragged images?
 
         self.dataset = self.dataset.map(self.predict, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
@@ -50,6 +49,9 @@ class Pipeline(abc.ABC):
     @abc.abstractmethod
     def get_model(self):
         pass
+
+    def batch(self, dataset, batchsize):
+        return dataset.batch(batchsize)
 
     def run(self):
         self.t = threading.Thread(target=self.feed_executors, daemon=True)

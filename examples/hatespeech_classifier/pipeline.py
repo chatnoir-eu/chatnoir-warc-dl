@@ -28,8 +28,10 @@ class HatespeechClassifierPipeline(TextPipeline):
 
     def get_tokens_spec(self):
         return {'input_ids': tf.TensorSpec(shape=(None,), dtype=tf.int32),
-                # todo use raggedtensor and allow masked batching
                 'attention_mask': tf.TensorSpec(shape=(None,), dtype=tf.int32)}
+
+    def batch(self, dataset, batchsize):
+        return dataset.padded_batch(batchsize)
 
     def get_tokenizer(self):
         tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english",
