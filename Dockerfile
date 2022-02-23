@@ -4,9 +4,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	software-properties-common default-jre curl
 ENV JAVA_HOME "/usr/lib/jvm/default-java"
 
-RUN curl https://dlcdn.apache.org/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.gz --output hadoop-2.10.1.tar.gz
-RUN tar -zxvf hadoop-2.10.1.tar.gz --directory /opt
-RUN rm hadoop-2.10.1.tar.gz
+RUN curl https://dlcdn.apache.org/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.gz --output hadoop-2.10.1.tar.gz \
+    && tar -zxvf hadoop-2.10.1.tar.gz --directory /opt \
+    && rm hadoop-2.10.1.tar.gz
 
 COPY hadoop /etc/hadoop/
 ENV HADOOP_CONF_DIR "/etc/hadoop/"
@@ -17,6 +17,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	python3.8 \
     python3.8-distutils \
+    python3.8-venv \
     wget
 
 # set python3.8 as default
@@ -30,11 +31,11 @@ COPY requirements.txt .
 
 RUN python3 -m pip install -r requirements.txt --no-cache-dir
 
-#RUN python3 -m pip install virtualenv venv-pack --no-cache-dir
+RUN python3 -m pip install venv-pack --no-cache-dir
 
 # build environment that will be sent to cluster nodes
 # according to https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
-#RUN python3 -m venv --system-site-packages /opt/venv \
-#    && source /opt/venv/bin/activate \
-#    && venv-pack -o pyspark_venv.tar.gz \
-#    && deactivate
+RUN python3 -m venv --system-site-packages /opt/venv \
+    && source /opt/venv/bin/activate \
+    && venv-pack -o pyspark_venv.tar.gz \
+    && deactivate
