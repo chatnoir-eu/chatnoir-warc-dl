@@ -2,12 +2,14 @@ FROM nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu18.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	software-properties-common default-jre curl
+ENV JAVA_HOME "/usr/lib/jvm/default-java"
 
 RUN curl https://dlcdn.apache.org/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.gz --output hadoop-2.10.1.tar.gz
-RUN tar -zxvf hadoop-2.10.1.tar.gz
-RUN cp -a hadoop-2.10.1/. / # todo optimize size (remove original tar.gz and extraction directory)
+RUN tar -zxvf hadoop-2.10.1.tar.gz --directory /opt
+RUN rm hadoop-2.10.1.tar.gz
 
 COPY hadoop /etc/hadoop/
+ENV HADOOP_CONF_DIR "/etc/hadoop/"
 
 RUN add-apt-repository ppa:deadsnakes/ppa
 
