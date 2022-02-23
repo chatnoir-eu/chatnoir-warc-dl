@@ -30,12 +30,8 @@ COPY requirements.txt .
 
 RUN python3 -m pip install -r requirements.txt --no-cache-dir
 
+RUN python3 -m pip install venv-pack --no-cache-dir
+
 # build environment that will be sent to cluster nodes
-# according to https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-conda
-RUN CONDA_PATH=/opt/conda \
-    && wget https://repo.anaconda.com/miniconda/Miniconda3-py38_4.11.0-Linux-x86_64.sh \
-    && chmod +x Miniconda3-py38_4.11.0-Linux-x86_64.sh \
-    && ./Miniconda3-py38_4.11.0-Linux-x86_64.sh -fbp $CONDA_PATH \
-    && PATH=$CONDA_PATH/bin:$PATH \
-    && conda create -y -n pyspark_conda_env -c conda-forge --file requirements.txt \
-    && conda pack -f -n pyspark_conda_env -o pyspark_conda_env.tar.gz
+# according to https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
+RUN venv-pack -o pyspark_venv.tar.gz

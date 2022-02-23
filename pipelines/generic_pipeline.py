@@ -21,11 +21,11 @@ class Pipeline(abc.ABC):
         self.ENDPOINT_URL = config["s3"]["ENDPOINT_URL"]
 
         # deploy prebuilt dependencies according to
-        # https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-conda
+        # https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
         os.environ['PYSPARK_PYTHON'] = "./environment/bin/python"
         conf = SparkConf()
         conf.setAll([("spark.executor.instances", str(config["pyspark"]["SPARK_INSTANCES"])),
-                     ("spark.yarn.dist.archives", "pyspark_conda_env.tar.gz#environment")])
+                     ("spark.yarn.dist.archives", "pyspark_venv.tar.gz#environment")])
         self.sc = SparkContext(master="yarn", appName="spark-test", conf=conf)
         self.sc.addPyFile("helpers.py")
 
