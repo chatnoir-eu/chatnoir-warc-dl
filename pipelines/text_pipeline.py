@@ -112,5 +112,5 @@ class TextPipeline(Pipeline, abc.ABC):
     def export(self, prediction, export_text, url):
         prediction = np.reshape(prediction, ())
         print(url.decode("utf-8"), prediction)
-        with open(f"{self.out_dir}/{base64.urlsafe_b64encode(url).decode('utf-8')}_{prediction:1.4f}.txt") as f:
+        with open(f"{self.out_dir}/{base64.urlsafe_b64encode(url).decode('utf-8')}_{prediction:1.4f}.txt", "w") as f:
             f.write(export_text)

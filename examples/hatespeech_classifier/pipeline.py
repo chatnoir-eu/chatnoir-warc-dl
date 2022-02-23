@@ -18,7 +18,7 @@ class HatespeechClassifierPipeline(TextPipeline):
         super().__init__(out_dir=out_dir, max_content_length=max_content_length)
 
         def multiple_to_one(prediction, export_text, url):
-            return prediction[0], export_text, url  # extract NEGATIVE classification result
+            return prediction["logits"][0], export_text, url  # extract NEGATIVE classification result
 
         self.dataset = self.dataset.map(multiple_to_one, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
