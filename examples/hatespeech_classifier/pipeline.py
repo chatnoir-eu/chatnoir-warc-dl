@@ -1,8 +1,5 @@
-import os
-import urllib.request
-
 import tensorflow as tf
-from tensorflow import keras
+from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
 
 from pipelines.text_pipeline import TextPipeline
 
@@ -25,15 +22,19 @@ class HatespeechClassifierPipeline(TextPipeline):
         self.dataset = self.dataset.map(multiple_to_one, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
     def get_model(self):
-        model_source = "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/tf_model.h5"
-        model_file = "models/hatespeech_classifier/tf_model.h5"
-        if not os.path.isfile(model_file):
-            os.makedirs(os.path.dirname(model_file), exist_ok=True)
-            print("Downloading model...")
-            urllib.request.urlretrieve(model_source, model_file)
-            print("Model download finished.")
-        model = keras.models.load_model(model_file)
+        model = TFAutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english",
+                                                                     cache_dir="models/hatespeech_classifier/")
         return model
+
+    def get_tokens_spec(self):
+        return {'input_ids': tf.TensorSpec(shape=(None,), dtype=tf.int32),
+                # todo use raggedtensor and allow masked batching
+                'attention_mask': tf.TensorSpec(shape=(None,), dtype=tf.int32)}
+
+    def get_tokenizer(self):
+        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english",
+                                                  cache_dir="models/hatespeech_classifier/")
+        return tokenizer
 
     def get_distributed_filter(self):
         def distributed_filter(text):
@@ -42,7 +43,7 @@ class HatespeechClassifierPipeline(TextPipeline):
         return distributed_filter
 
     def filter(self, prediction, *args):
-        return tf.reshape(prediction[0] > .9, ())  # extract NEGATIVE classification result
+        return tf.reshape(prediction["logits"][0] > .9, ())  # extract NEGATIVE classification result
 
 
 if __name__ == "__main__":
