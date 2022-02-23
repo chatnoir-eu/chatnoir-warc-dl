@@ -17,15 +17,16 @@ class HatespeechClassifierPipeline(TextPipeline):
         max_content_length = 4000000  # todo define proper text limit
         super().__init__(out_dir=out_dir, max_content_length=max_content_length)
 
-        def multiple_to_one(prediction, export_text, url):
-            return prediction["logits"][0], export_text, url  # extract NEGATIVE classification result
-
-        self.dataset = self.dataset.map(multiple_to_one, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
-
     def get_model(self):
         model = TFAutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english",
                                                                      cache_dir="models/hatespeech_classifier/")
         return model
+
+    def predict(self, model_input, *args):
+        prediction, *_ = super().predict(model_input)
+        logits = prediction["logits"]
+        probabilities = tf.nn.softmax(logits)
+        return probabilities[:, 0], *args  # extract NEGATIVE classification result for whole batch
 
     def get_tokens_spec(self):
         return {'input_ids': tf.TensorSpec(shape=(None,), dtype=tf.int32),
@@ -52,7 +53,7 @@ class HatespeechClassifierPipeline(TextPipeline):
         return distributed_filter
 
     def filter(self, prediction, *args):
-        return tf.reshape(prediction["logits"][0] > .9, ())  # extract NEGATIVE classification result
+        return tf.reshape(prediction > .9, ())
 
 
 if __name__ == "__main__":

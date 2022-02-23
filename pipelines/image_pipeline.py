@@ -87,5 +87,5 @@ class ImagePipeline(Pipeline, abc.ABC):
     def export(self, prediction, original_image, url):
         prediction = np.reshape(prediction, ())
         print(url.decode("utf-8"), prediction)
-        iio.imwrite(f"{self.out_dir}/{base64.urlsafe_b64encode(url).decode('utf-8')}_{prediction:1.4f}.jpg",
+        iio.imwrite(f"{self.out_dir}/{base64.urlsafe_b64encode(url[:128]).decode('utf-8')}_{prediction:1.4f}.jpg",
                     original_image)
