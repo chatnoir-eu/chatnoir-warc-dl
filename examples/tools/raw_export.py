@@ -9,6 +9,6 @@ class ImageRawExportPipeline(PassthroughModelPipeline, ExportDatasetPipeline, Im
 
 if __name__ == "__main__":
     dataset_export_dir = "data/image_raw_export/out/"
-    p = ImageRawExportPipeline(image_size=(150, 150), out_dir=dataset_export_dir, max_content_length=4000000,
+    p = ImageRawExportPipeline(image_size=(150, 150), out_dir=None, max_content_length=4000000,
                                dataset_export_dir=dataset_export_dir)
     p.run()

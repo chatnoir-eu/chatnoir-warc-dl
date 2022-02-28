@@ -17,7 +17,8 @@ class ImagePipeline(Pipeline, abc.ABC):
     def __init__(self, image_size, out_dir, max_content_length):
         self.image_size = image_size
         self.out_dir = out_dir
-        os.makedirs(self.out_dir, exist_ok=True)
+        if self.out_dir is not None:
+            os.makedirs(self.out_dir, exist_ok=True)
         self.max_content_length = max_content_length
 
         super().__init__()
