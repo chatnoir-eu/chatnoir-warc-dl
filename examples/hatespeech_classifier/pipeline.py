@@ -14,7 +14,7 @@ class HatespeechClassifierPipeline(TextPipeline):
 
     def __init__(self):
         out_dir = "data/hatespeech_classifier/out/"
-        max_content_length = 4000000  # todo define proper text limit
+        max_content_length = 4000000
         super().__init__(out_dir=out_dir, max_content_length=max_content_length)
 
     def get_model(self):
