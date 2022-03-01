@@ -73,7 +73,7 @@ class TextPipeline(Pipeline, abc.ABC):
                         if content_type.startswith("text/html"):
                             url = str(record.headers['WARC-Target-URI'])
                             try:
-                                with time_guard(timeout=10) as t_guard, mem_guard(max_memory=1024 * 50, grace_period=2):
+                                with time_guard(timeout=10), mem_guard(max_memory=1024 * 50, grace_period=2):
                                     html_bytes = record.reader.read()
                                     try:
                                         encoding = None
