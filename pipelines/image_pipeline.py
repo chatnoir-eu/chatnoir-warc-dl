@@ -75,8 +75,7 @@ class ImagePipeline(Pipeline, abc.ABC):
                             content = record.reader.read()
                             try:
                                 image = tf.io.decode_image(content, channels=3, expand_animations=False)
-                            except tf.errors.InvalidArgumentError:  # todo assess error rate
-                                # todo maybe this is the problem? https://resiliparse.chatnoir.eu/en/stable/man/parse/http.html#read-chunked-http-payloads
+                            except tf.errors.InvalidArgumentError:
                                 acc_counter.add(Counter({"n_decoding_exception": 1}))
                                 continue
                             if not distributed_filter(image):
