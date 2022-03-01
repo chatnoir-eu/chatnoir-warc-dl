@@ -1,12 +1,14 @@
 import abc
+import collections
 import configparser
 import os
 import threading
+import time
 
 import tensorflow as tf
 from pyspark import SparkContext, SparkConf
 
-from helpers import NonPicklableQueue, ResultsParam, create_s3_client
+from helpers import NonPicklableQueue, ResultsParam, create_s3_client, CounterAccumulatorParam
 
 
 class Pipeline(abc.ABC):
@@ -31,6 +33,7 @@ class Pipeline(abc.ABC):
 
         self.q = NonPicklableQueue()
         self.acc = self.sc.accumulator([], ResultsParam(self.q))
+        self.acc_counter = self.sc.accumulator(collections.Counter(), CounterAccumulatorParam())
 
         self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
 
@@ -53,11 +56,21 @@ class Pipeline(abc.ABC):
     def batch(self, dataset, batchsize):
         return dataset.batch(batchsize)
 
+    def start_threads(self):
+        threading.Thread(target=self.feed_executors, daemon=True).start()
+
+        def print_stats():
+            while True:
+                time.sleep(10)
+                print(self.acc_counter)
+
+        threading.Thread(target=print_stats, daemon=True).start()
+
     def run(self):
-        self.t = threading.Thread(target=self.feed_executors, daemon=True)
-        self.t.start()
+        self.start_threads()
         for data in self.dataset.as_numpy_iterator():
             self.export(*data)
+            self.acc_counter.add(collections.Counter({"n_driver_filter_passed": 1}))
 
     @abc.abstractmethod
     def get_generator_factory(self):

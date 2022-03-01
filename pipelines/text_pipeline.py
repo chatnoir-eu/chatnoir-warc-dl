@@ -1,6 +1,7 @@
 import abc
 import base64
 import os
+from collections import Counter
 from time import sleep
 
 import numpy as np
@@ -51,6 +52,7 @@ class TextPipeline(Pipeline, abc.ABC):
         return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first #todo rework this description
         :return:
         """
+        acc_counter = self.acc_counter
         max_content_length = self.max_content_length
         distributed_filter = self.get_distributed_filter()
         tokenizer = self.get_tokenizer()
@@ -65,8 +67,10 @@ class TextPipeline(Pipeline, abc.ABC):
             for record in ArchiveIterator(stream, max_content_length=max_content_length):
                 try:
                     if record.headers is None:
+                        acc_counter.add(Counter({"n_record_headers_none": 1}))
                         continue
                     if record.http_headers is None:
+                        acc_counter.add(Counter({"n_http_headers_none": 1}))
                         continue
                     if record.headers['WARC-Type'] == 'response' and record.content_length >= 128:
                         content_type = str(record.http_headers.get('Content-Type')).lower()
@@ -86,6 +90,7 @@ class TextPipeline(Pipeline, abc.ABC):
                                             encoding = detect_encoding(html_bytes)
                                         tree = HTMLTree.parse_from_bytes(html_bytes, encoding)
                                     except:
+                                        acc_counter.add(Counter({"n_decoding_exception": 1}))
                                         continue
 
                                     prediction_text = extract_plain_text(tree, preserve_formatting=False,
@@ -98,15 +103,24 @@ class TextPipeline(Pipeline, abc.ABC):
                                                                      form_fields=True, noscript=True)
 
                                     if not distributed_filter(prediction_text):
+                                        acc_counter.add(Counter({"n_distributed_filter_not_passed": 1}))
                                         continue
 
                                     yield tokenizer(prediction_text), export_text, url
+                                    acc_counter.add(Counter({"n_node_results": 1}))
 
                             except (ExecutionTimeout, MemoryLimitExceeded):
+                                acc_counter.add(Counter({"n_resiliparse_guard_exceptions": 1}))
                                 continue
                             sleep(5)  # todo remove ????
+                        else:
+                            acc_counter.add(Counter({"n_wrong_content_type": 1}))
+                    else:
+                        acc_counter.add(Counter({"n_wrong_warc_type": 1}))
                 except:
-                    raise  # todo better: continue
+                    acc_counter.add(Counter({"n_unhandled_record_exceptions": 1}))
+                    continue
+            acc_counter.add(Counter({"n_finished_warc_files": 1}))
 
         return generator_factory
 

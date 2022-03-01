@@ -1,3 +1,4 @@
+import collections
 from queue import Queue
 
 import boto3
@@ -42,6 +43,14 @@ class ResultsParam(AccumulatorParam):
             for x in acc2:
                 self.q.put(x)
             return []
+
+
+class CounterAccumulatorParam(AccumulatorParam):
+    def zero(self, v):
+        return collections.Counter()
+
+    def addInPlace(self, acc1, acc2):
+        return acc1 + acc2
 
 
 class NonPicklableQueue(Queue):

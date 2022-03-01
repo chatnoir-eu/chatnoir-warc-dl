@@ -10,8 +10,8 @@ class PassthroughModelPipeline(Pipeline, abc.ABC):
     def get_model(self):
         return None
 
-    def predict(self, *args):
-        return args
+    def predict(self, model_input, *args):
+        return tf.ones((self.BATCHSIZE,)), *args
 
     @tf.function
     def filter(self, *args):
