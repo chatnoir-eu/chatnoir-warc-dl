@@ -10,7 +10,7 @@ from fastwarc.warc import ArchiveIterator
 from resiliparse.extract.html2text import extract_plain_text
 from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
-from resiliparse.process_guard import time_guard, mem_guard, MemoryLimitExceeded, ExecutionTimeout
+from resiliparse.process_guard import time_guard, MemoryLimitExceeded, ExecutionTimeout
 
 from helpers import create_s3_client, get_file_stream
 from pipelines.generic_pipeline import Pipeline
@@ -77,7 +77,8 @@ class TextPipeline(Pipeline, abc.ABC):
                         if content_type.startswith("text/html"):
                             url = str(record.headers['WARC-Target-URI'])
                             try:
-                                with time_guard(timeout=10), mem_guard(max_memory=1024 * 50, grace_period=2):
+                                with time_guard(
+                                        timeout=10):  # , mem_guard(max_memory=1024 * 50, grace_period=2):# todo add back again https://github.com/chatnoir-eu/chatnoir-resiliparse/blob/4f0b3bf7168228c947107bbe459d09d3923fa93e/resiliparse/resiliparse/process_guard.pyx#L75
                                     html_bytes = record.reader.read()
                                     try:
                                         encoding = None
@@ -106,13 +107,14 @@ class TextPipeline(Pipeline, abc.ABC):
                                         acc_counter.add(Counter({"n_distributed_filter_not_passed": 1}))
                                         continue
 
-                                    yield tokenizer(prediction_text), export_text, url
-                                    acc_counter.add(Counter({"n_node_results": 1}))
-
                             except (ExecutionTimeout, MemoryLimitExceeded):
                                 acc_counter.add(Counter({"n_resiliparse_guard_exceptions": 1}))
                                 continue
+
+                            yield tokenizer(prediction_text), export_text, url
+                            acc_counter.add(Counter({"n_node_results": 1}))
                             sleep(5)  # todo remove ????
+
                         else:
                             acc_counter.add(Counter({"n_wrong_content_type": 1}))
                     else:
