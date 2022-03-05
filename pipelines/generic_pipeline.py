@@ -74,9 +74,6 @@ class Pipeline(abc.ABC):
         self.sc = SparkContext(master="yarn", appName="web-archive-keras", conf=conf)
         self.sc.addPyFile("helpers.py")
 
-        # self.q = NonPicklableQueue()
-
-        # self.acc = self.sc.accumulator([], ResultsParam(self.q))
         self.acc_counter = self.sc.accumulator(collections.Counter(), CounterAccumulatorParam())
 
         self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
@@ -113,7 +110,7 @@ class Pipeline(abc.ABC):
         self.start_threads()
         for data in self.dataset.as_numpy_iterator():
             self.export(*data)
-            #self.acc_counter.add(collections.Counter({"n_driver_filter_passed": 1})) #todo does not work(?)
+            self.acc_counter.add(collections.Counter({"n_driver_filter_passed": 1}))
 
     @abc.abstractmethod
     def get_generator_factory(self):
@@ -132,7 +129,6 @@ class Pipeline(abc.ABC):
     def feed_executors(self):
         files = self.get_bucket_files()
         rdd = self.sc.parallelize(files, len(files))
-        # acc = self.acc
         generator_factory = self.get_generator_factory()
         HOST, PORT = self.HOST, self.PORT
 
@@ -144,13 +140,11 @@ class Pipeline(abc.ABC):
                     for record in generator:
                         batch = pyarrow.RecordBatch.from_pylist([pack_dict(record)])
                         if writer is None:
-                            writer = pyarrow.ipc.new_stream(outfile,
-                                                            batch.schema)  # pyarrow.schema([(0,pyarrow.float32()),(1,pyarrow.string())]))
+                            writer = pyarrow.ipc.new_stream(outfile, batch.schema)
                         writer.write_batch(batch)
                     writer.close()  # todo does this have to use a finally statement?
 
-        rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST,
-                                                 PORT))  # rdd.flatMap(self.get_generator_factory()).foreach(lambda x: acc.add([x]))
+        rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST, PORT))
         #self.q.put(None) #todo somehow stop the server
 
     @abc.abstractmethod
