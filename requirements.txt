@@ -1,8 +1,10 @@
 tensorflow
-transformers
-numpy
-imageio
+tensorflow-io
 pyspark
+pyarrow
+numpy
 boto3
+imageio
 fastwarc
 resiliparse
+transformers
