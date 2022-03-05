@@ -2,11 +2,10 @@ import threading
 import time
 
 import numpy as np
-import tensorflow as tf
 
 from pipelines.tools.passthrough_model import PassthroughModelPipeline
 
-SHAPE = (100000000,)  # data shape is so large that unbounded execution would lead to OOM very fast
+SHAPE = (100,)  # data shape is so large that unbounded execution would lead to OOM very fast
 
 
 class BackpressureTestPipeline(PassthroughModelPipeline):
@@ -20,14 +19,15 @@ class BackpressureTestPipeline(PassthroughModelPipeline):
                 payload = np.empty(SHAPE, dtype=np.float32)
                 descriptor = f"no {i} in {file_name}"
                 time.sleep(.1)
-                yield payload, descriptor
+                yield {"payload": payload, "descriptor": descriptor}
 
         return generator_factory
 
     def get_dataset(self):
-        return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
-            tf.TensorSpec(shape=SHAPE, dtype=tf.float32),  # large data
-            tf.TensorSpec(shape=(), dtype=tf.string)))  # descriptor
+        pass
+        # return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
+        #    tf.TensorSpec(shape=SHAPE, dtype=tf.float32),  # large data
+        #    tf.TensorSpec(shape=(), dtype=tf.string)))  # descriptor
 
     def export(self, *args):
         print(*args)

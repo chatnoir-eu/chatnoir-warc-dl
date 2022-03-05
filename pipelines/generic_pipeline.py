@@ -2,13 +2,61 @@ import abc
 import collections
 import configparser
 import os
+import shutil
+import socket
 import threading
 import time
 
+import pyarrow
 import tensorflow as tf
+import tensorflow_io.arrow as arrow_io
 from pyspark import SparkContext, SparkConf
 
-from helpers import NonPicklableQueue, ResultsParam, create_s3_client, CounterAccumulatorParam
+from helpers import create_s3_client, CounterAccumulatorParam
+
+
+def driver_server():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # todo use "with"?
+    s.bind(("", 0))
+    HOST = socket.gethostname()
+    PORT = s.getsockname()[1]
+    yield HOST, PORT
+    s.listen()
+    while True:
+        conn, _ = s.accept()  # todo do we have to close this conn?
+        infile = conn.makefile(mode="rb")  # todo do we have to close this file?
+        # todo backpressure
+        ds = ds_from_file(infile)
+        yield ds
+
+
+def ds_from_file(f):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # todo avoid creating a new socket here
+    s.bind(("", 0))
+    host_addr, port = s.getsockname()
+    endpoint = f"{host_addr}:{port}"
+    s.listen()
+
+    def cont():
+        conn, _ = s.accept()
+        outfile = conn.makefile(mode="wb")
+        shutil.copyfileobj(f, outfile)
+
+    threading.Thread(target=cont, daemon=True).start()
+    return arrow_io.ArrowStreamDataset(endpoints=[endpoint], columns=(0, 1), output_types=(tf.float32, tf.string))
+
+
+def complete_ds():
+    serv = driver_server()
+    HOST, PORT = next(serv)
+
+    serv_ds = tf.data.Dataset.from_generator(lambda: serv, output_signature=tf.data.DatasetSpec((tf.TensorSpec(
+        shape=(100,), dtype=tf.float32), tf.TensorSpec(shape=(),
+                                                       dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
+
+    complete_ds = serv_ds.interleave(tf.function(lambda dataset: dataset), num_parallel_calls=tf.data.AUTOTUNE,
+                                     deterministic=False)
+    return HOST, PORT, complete_ds
 
 
 class Pipeline(abc.ABC):
@@ -31,14 +79,15 @@ class Pipeline(abc.ABC):
         self.sc = SparkContext(master="yarn", appName="web-archive-keras", conf=conf)
         self.sc.addPyFile("helpers.py")
 
-        self.q = NonPicklableQueue()
-        self.acc = self.sc.accumulator([], ResultsParam(self.q))
+        # self.q = NonPicklableQueue()
+
+        # self.acc = self.sc.accumulator([], ResultsParam(self.q))
         self.acc_counter = self.sc.accumulator(collections.Counter(), CounterAccumulatorParam())
 
         self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
 
         self.model = self.get_model()
-        self.dataset = self.get_dataset()
+        self.HOST, self.PORT, self.dataset = complete_ds()
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
         self.dataset = self.batch(self.dataset, self.BATCHSIZE)
 
@@ -88,16 +137,25 @@ class Pipeline(abc.ABC):
     def feed_executors(self):
         files = self.get_bucket_files()
         rdd = self.sc.parallelize(files, len(files))
-        acc = self.acc
-        rdd.flatMap(self.get_generator_factory()).foreach(lambda x: acc.add([x]))
-        self.q.put(None)
+        # acc = self.acc
+        generator = self.get_generator_factory()
+        HOST, PORT = self.HOST, self.PORT
 
-    def driver_generator(self):
-        while True:
-            elem = self.q.get()
-            if elem is None:
-                return
-            yield elem
+        def node_client(generator, HOST, PORT):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((HOST, PORT))
+                with s.makefile(mode="wb") as outfile:
+                    writer = None
+                    for entry in generator:
+                        batch = pyarrow.RecordBatch.from_pylist([entry])
+                        if writer is None:
+                            writer = pyarrow.RecordBatchStreamWriter(outfile, batch.schema)
+                        writer.write_batch(batch)
+                    writer.close()  # todo does this have to use a finally statement?
+
+        rdd.foreach(lambda filename: node_client(generator(filename), HOST,
+                                                 PORT))  # rdd.flatMap(self.get_generator_factory()).foreach(lambda x: acc.add([x]))
+        #self.q.put(None)
 
     @abc.abstractmethod
     def get_dataset(self):
