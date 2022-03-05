@@ -1,5 +1,4 @@
 tensorflow
-tensorflow-io
 pyspark
 pyarrow
 numpy

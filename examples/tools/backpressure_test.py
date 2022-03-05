@@ -5,7 +5,7 @@ import numpy as np
 
 from pipelines.tools.passthrough_model import PassthroughModelPipeline
 
-SHAPE = (100000000,)  # data shape is so large that unbounded execution would lead to OOM very fast
+SHAPE = (10,)  # data shape is so large that unbounded execution would lead to OOM very fast
 
 
 class BackpressureTestPipeline(PassthroughModelPipeline):
@@ -19,8 +19,7 @@ class BackpressureTestPipeline(PassthroughModelPipeline):
                 payload = np.empty(SHAPE, dtype=np.float32)
                 descriptor = f"no {i} in {file_name}"
                 time.sleep(.1)
-                yield {"payload": payload,
-                       "descriptor": descriptor}  # todo yield a tuple here and convert it to canonically keyed dict later
+                yield payload, descriptor
 
         return generator_factory
 
@@ -31,7 +30,7 @@ class BackpressureTestPipeline(PassthroughModelPipeline):
         #    tf.TensorSpec(shape=(), dtype=tf.string)))  # descriptor
 
     def export(self, *args):
-        print(*args)
+        print(args[-1])
 
     def start_threads(self):
         threading.Thread(target=self.feed_executors, daemon=True).start()

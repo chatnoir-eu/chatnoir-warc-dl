@@ -56,3 +56,11 @@ class CounterAccumulatorParam(AccumulatorParam):
 class NonPicklableQueue(Queue):  # todo remove unused helpers
     def __getstate__(self):
         return None
+
+
+def pack_dict(t):
+    return {str(i): v for i, v in enumerate(t)}
+
+
+def unpack_dict(d):
+    return tuple(d[str(i)] for i in range(len(d)))

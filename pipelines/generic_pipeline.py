@@ -2,17 +2,15 @@ import abc
 import collections
 import configparser
 import os
-import shutil
 import socket
 import threading
 import time
 
 import pyarrow
 import tensorflow as tf
-import tensorflow_io.arrow as arrow_io  # todo remove this from requirements and rebuild and redeploy docker image
 from pyspark import SparkContext, SparkConf
 
-from helpers import create_s3_client, CounterAccumulatorParam
+from helpers import create_s3_client, CounterAccumulatorParam, unpack_dict, pack_dict
 
 
 def driver_server():
@@ -28,29 +26,19 @@ def driver_server():
         # todo backpressure
         ds = ds_from_file(infile)
 
-        # this is ugly, but currently necessary as not all required tf methods are implemented by ArrowStreamDataset
-        # ds=tf.data.Dataset.from_generator(lambda: itertools.tee(ds.as_numpy_iterator(),1)[0],output_signature=(tf.TensorSpec(
-        # shape=(100000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
-        #                                               dtype=tf.string)))
-
         yield ds
 
 
 def ds_from_file(f):
-    s = socket.socket(socket.AF_INET,
-                      socket.SOCK_STREAM)  # todo avoid creating a new socket here by using https://arrow.apache.org/docs/python/generated/pyarrow.ipc.RecordBatchStreamReader.html#pyarrow.ipc.RecordBatchStreamReader
-    s.bind(("", 0))
-    host_addr, port = s.getsockname()
-    endpoint = f"{host_addr}:{port}"
-    s.listen()
+    def gen():
+        for record_batch in pyarrow.ipc.open_stream(
+                f):  # todo also allow streams of pickle objects using https://stackoverflow.com/a/28745948
+            for record in record_batch.to_pylist():
+                yield unpack_dict(record)  # todo does this work with cycle_length>1 or do we need another threading?
 
-    def cont():
-        conn, _ = s.accept()
-        outfile = conn.makefile(mode="wb")
-        shutil.copyfileobj(f, outfile)
-
-    threading.Thread(target=cont, daemon=True).start()
-    return arrow_io.ArrowStreamDataset(endpoints=[endpoint], columns=(0, 1), output_types=(tf.float32, tf.string))
+    return tf.data.Dataset.from_generator(gen, output_signature=(tf.TensorSpec(
+        shape=(10,), dtype=tf.float32), tf.TensorSpec(shape=(),
+                                                      dtype=tf.string)))
 
 
 def complete_ds():
@@ -58,11 +46,11 @@ def complete_ds():
     HOST, PORT = next(serv)
 
     serv_ds = tf.data.Dataset.from_generator(lambda: serv, output_signature=tf.data.DatasetSpec((tf.TensorSpec(
-        shape=(100000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
-                                                             dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
+        shape=(10,), dtype=tf.float32), tf.TensorSpec(shape=(),
+                                                      dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
 
     complete_ds = serv_ds.interleave(tf.function(lambda dataset: dataset), num_parallel_calls=tf.data.AUTOTUNE,
-                                     deterministic=False, cycle_length=1)  #todo 8 just for test, better is infinity
+                                     deterministic=False)  #todo could a too high cycle_length result in a deadlock?
     return HOST, PORT, complete_ds
 
 
@@ -125,7 +113,7 @@ class Pipeline(abc.ABC):
         self.start_threads()
         for data in self.dataset.as_numpy_iterator():
             self.export(*data)
-            self.acc_counter.add(collections.Counter({"n_driver_filter_passed": 1}))
+            #self.acc_counter.add(collections.Counter({"n_driver_filter_passed": 1})) #todo does not work(?)
 
     @abc.abstractmethod
     def get_generator_factory(self):
@@ -145,7 +133,7 @@ class Pipeline(abc.ABC):
         files = self.get_bucket_files()
         rdd = self.sc.parallelize(files, len(files))
         # acc = self.acc
-        generator = self.get_generator_factory()
+        generator_factory = self.get_generator_factory()
         HOST, PORT = self.HOST, self.PORT
 
         def node_client(generator, HOST, PORT):
@@ -153,16 +141,17 @@ class Pipeline(abc.ABC):
                 s.connect((HOST, PORT))
                 with s.makefile(mode="wb") as outfile:
                     writer = None
-                    for entry in generator:
-                        batch = pyarrow.RecordBatch.from_pylist([entry])
+                    for record in generator:
+                        batch = pyarrow.RecordBatch.from_pylist([pack_dict(record)])
                         if writer is None:
-                            writer = pyarrow.RecordBatchStreamWriter(outfile, batch.schema)
+                            writer = pyarrow.ipc.new_stream(outfile,
+                                                            batch.schema)  # pyarrow.schema([(0,pyarrow.float32()),(1,pyarrow.string())]))
                         writer.write_batch(batch)
                     writer.close()  # todo does this have to use a finally statement?
 
-        rdd.foreach(lambda filename: node_client(generator(filename), HOST,
+        rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST,
                                                  PORT))  # rdd.flatMap(self.get_generator_factory()).foreach(lambda x: acc.add([x]))
-        #self.q.put(None)
+        #self.q.put(None) #todo somehow stop the server
 
     @abc.abstractmethod
     def get_dataset(self):
