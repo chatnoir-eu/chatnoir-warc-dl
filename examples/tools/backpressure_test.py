@@ -5,7 +5,7 @@ import numpy as np
 
 from pipelines.tools.passthrough_model import PassthroughModelPipeline
 
-SHAPE = (10,)  # data shape is so large that unbounded execution would lead to OOM very fast
+SHAPE = (10000000,)  # data shape is so large that unbounded execution would lead to OOM very fast
 
 
 class BackpressureTestPipeline(PassthroughModelPipeline):

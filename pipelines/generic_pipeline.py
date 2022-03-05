@@ -37,8 +37,8 @@ def ds_from_file(f):
                 yield unpack_dict(record)  # todo does this work with cycle_length>1 or do we need another threading?
 
     return tf.data.Dataset.from_generator(gen, output_signature=(tf.TensorSpec(
-        shape=(10,), dtype=tf.float32), tf.TensorSpec(shape=(),
-                                                      dtype=tf.string)))
+        shape=(10000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
+                                                            dtype=tf.string)))
 
 
 def complete_ds():
@@ -46,8 +46,8 @@ def complete_ds():
     HOST, PORT = next(serv)
 
     serv_ds = tf.data.Dataset.from_generator(lambda: serv, output_signature=tf.data.DatasetSpec((tf.TensorSpec(
-        shape=(10,), dtype=tf.float32), tf.TensorSpec(shape=(),
-                                                      dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
+        shape=(10000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
+                                                            dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
 
     complete_ds = serv_ds.interleave(tf.function(lambda dataset: dataset), num_parallel_calls=tf.data.AUTOTUNE,
                                      deterministic=False)  #todo could a too high cycle_length result in a deadlock?
