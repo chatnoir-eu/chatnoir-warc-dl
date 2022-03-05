@@ -9,7 +9,7 @@ import time
 
 import pyarrow
 import tensorflow as tf
-import tensorflow_io.arrow as arrow_io
+import tensorflow_io.arrow as arrow_io  # todo remove this from requirements and rebuild and redeploy docker image
 from pyspark import SparkContext, SparkConf
 
 from helpers import create_s3_client, CounterAccumulatorParam
@@ -27,11 +27,18 @@ def driver_server():
         infile = conn.makefile(mode="rb")  # todo do we have to close this file?
         # todo backpressure
         ds = ds_from_file(infile)
+
+        # this is ugly, but currently necessary as not all required tf methods are implemented by ArrowStreamDataset
+        # ds=tf.data.Dataset.from_generator(lambda: itertools.tee(ds.as_numpy_iterator(),1)[0],output_signature=(tf.TensorSpec(
+        # shape=(100000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
+        #                                               dtype=tf.string)))
+
         yield ds
 
 
 def ds_from_file(f):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # todo avoid creating a new socket here
+    s = socket.socket(socket.AF_INET,
+                      socket.SOCK_STREAM)  # todo avoid creating a new socket here by using https://arrow.apache.org/docs/python/generated/pyarrow.ipc.RecordBatchStreamReader.html#pyarrow.ipc.RecordBatchStreamReader
     s.bind(("", 0))
     host_addr, port = s.getsockname()
     endpoint = f"{host_addr}:{port}"
@@ -51,11 +58,11 @@ def complete_ds():
     HOST, PORT = next(serv)
 
     serv_ds = tf.data.Dataset.from_generator(lambda: serv, output_signature=tf.data.DatasetSpec((tf.TensorSpec(
-        shape=(100,), dtype=tf.float32), tf.TensorSpec(shape=(),
-                                                       dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
+        shape=(100000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
+                                                             dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
 
     complete_ds = serv_ds.interleave(tf.function(lambda dataset: dataset), num_parallel_calls=tf.data.AUTOTUNE,
-                                     deterministic=False)
+                                     deterministic=False, cycle_length=1)  #todo 8 just for test, better is infinity
     return HOST, PORT, complete_ds
 
 

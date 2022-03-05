@@ -53,6 +53,6 @@ class CounterAccumulatorParam(AccumulatorParam):
         return acc1 + acc2
 
 
-class NonPicklableQueue(Queue):
+class NonPicklableQueue(Queue):  # todo remove unused helpers
     def __getstate__(self):
         return None
