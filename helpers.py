@@ -2,7 +2,7 @@ import collections
 from queue import Queue
 
 import boto3
-from pyspark import TaskContext, AccumulatorParam
+from pyspark import AccumulatorParam
 
 
 def create_s3_client(AWS_ACCESS_KEY_ID, AWS_SECRET, ENDPOINT_URL):
@@ -19,30 +19,6 @@ def get_file_stream(s3_client, bucket, key):
         Key=key
     )
     return response['Body']._raw_stream
-
-
-class ResultsParam(AccumulatorParam):
-    def __init__(self, q):
-        self.q = q
-        super().__init__()
-
-    def zero(self, v):
-        return []
-
-    def addInPlace(self, acc1, acc2):
-        # This is executed on the workers so we have to
-        # merge the results
-        if (TaskContext.get() is not None and
-                TaskContext().get().partitionId() is not None):
-            acc1.extend(acc2)
-            return acc1
-        else:
-            # This is executed on the driver so we discard the results
-            # and publish to self instead
-            assert len(acc1) == 0
-            for x in acc2:
-                self.q.put(x)
-            return []
 
 
 class CounterAccumulatorParam(AccumulatorParam):
