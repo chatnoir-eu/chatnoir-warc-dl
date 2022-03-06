@@ -26,4 +26,3 @@ class CounterAccumulatorParam(AccumulatorParam):
 
     def addInPlace(self, acc1, acc2):
         return acc1 + acc2
-
