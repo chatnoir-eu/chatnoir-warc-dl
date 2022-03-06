@@ -26,7 +26,7 @@ class BackpressureTestPipeline(PassthroughModelPipeline):
 
     def get_signature(self):
         return (
-            tf.TensorSpec(shape=SHAPE, dtype=tf.float32),  # large data
+            tf.TensorSpec(shape=SHAPE, dtype=tf.float32),  # large payload data
             tf.TensorSpec(shape=(), dtype=tf.string))  # descriptor
 
     def export(self, *args):
