@@ -1,5 +1,4 @@
 import collections
-from queue import Queue
 
 import boto3
 from pyspark import AccumulatorParam
@@ -28,7 +27,3 @@ class CounterAccumulatorParam(AccumulatorParam):
     def addInPlace(self, acc1, acc2):
         return acc1 + acc2
 
-
-class NonPicklableQueue(Queue):  # todo remove unused helpers
-    def __getstate__(self):
-        return None
