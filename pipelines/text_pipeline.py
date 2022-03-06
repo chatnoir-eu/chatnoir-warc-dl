@@ -2,7 +2,6 @@ import abc
 import base64
 import os
 from collections import Counter
-from time import sleep
 
 import numpy as np
 import tensorflow as tf
@@ -113,7 +112,6 @@ class TextPipeline(Pipeline, abc.ABC):
 
                             yield tokenizer(prediction_text), export_text, url
                             acc_counter.add(Counter({"n_node_results": 1}))
-                            sleep(5)  # todo remove ????
 
                         else:
                             acc_counter.add(Counter({"n_wrong_content_type": 1}))

@@ -2,7 +2,6 @@ import abc
 import base64
 import os
 from collections import Counter
-from time import sleep
 
 import imageio as iio
 import numpy as np
@@ -85,7 +84,6 @@ class ImagePipeline(Pipeline, abc.ABC):
                             original_image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
                             yield resized, original_image, url
                             acc_counter.add(Counter({"n_node_results": 1}))
-                            sleep(5)  # todo remove ????
                         else:
                             acc_counter.add(Counter({"n_wrong_content_type": 1}))
                     else:
