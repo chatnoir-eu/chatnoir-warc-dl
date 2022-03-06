@@ -2,16 +2,16 @@ import abc
 import collections
 import configparser
 import os
+import pickle
 import socket
 import threading
 import time
 from queue import Queue
 
-import pyarrow
 import tensorflow as tf
 from pyspark import SparkContext, SparkConf
 
-from helpers import create_s3_client, CounterAccumulatorParam, unpack_dict, pack_dict
+from helpers import create_s3_client, CounterAccumulatorParam
 
 
 def interleave_join(q, q2):
@@ -20,10 +20,11 @@ def interleave_join(q, q2):
         if f is None:
             q.put(None)
             return
-        for record_batch in pyarrow.ipc.open_stream(
-                f):  # todo also allow streams of pickle objects using https://stackoverflow.com/a/28745948
-            for record in record_batch.to_pylist():
-                q2.put(unpack_dict(record))
+        while True:
+            try:
+                q2.put(pickle.load(f))
+            except EOFError:
+                break
 
 
 def gen(q2):
@@ -161,13 +162,8 @@ class Pipeline(abc.ABC):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((HOST, PORT))
                 with s.makefile(mode="wb") as outfile:
-                    writer = None
                     for record in generator:
-                        batch = pyarrow.RecordBatch.from_pylist([pack_dict(record)])
-                        if writer is None:
-                            writer = pyarrow.ipc.new_stream(outfile, batch.schema)
-                        writer.write_batch(batch)
-                    writer.close()  # todo does this have to use a finally statement?
+                        pickle.dump(record, outfile)
 
         rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST, PORT))
         self.q.put(None)

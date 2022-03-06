@@ -1,6 +1,5 @@
 tensorflow
 pyspark
-pyarrow
 numpy
 boto3
 imageio
