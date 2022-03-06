@@ -93,7 +93,7 @@ class Pipeline(abc.ABC):
         self.PORT = s.getsockname()[1]
         s.listen()
         self.q = Queue()
-        self.q2 = Queue(100)  # todo adjust restriction
+        self.q2 = Queue(100)  # todo make configurable
 
         def server():
             while True:
@@ -128,7 +128,9 @@ class Pipeline(abc.ABC):
         def print_stats():
             while True:
                 time.sleep(10)
-                print(self.acc_counter)
+                print(self.acc_counter)  # todo prettyfy
+                print("queue size:",
+                      self.q2.qsize())  # todo show in percent and give advice on regulating SPARK_INSTANCES or num_GPUs
 
         threading.Thread(target=print_stats, daemon=True).start()
 
@@ -136,7 +138,6 @@ class Pipeline(abc.ABC):
         self.start_threads()
         for data in self.dataset.as_numpy_iterator():
             self.export(*data)
-            self.acc_counter.add(collections.Counter({"n_driver_filter_passed": 1}))
 
     @abc.abstractmethod
     def get_generator_factory(self):
@@ -146,7 +147,7 @@ class Pipeline(abc.ABC):
         """
         pass
 
-    def get_bucket_files(self):
+    def get_bucket_files(self):  # todo support multiple bucket names
         s3_client = create_s3_client(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET, self.ENDPOINT_URL)
         paginator = s3_client.get_paginator('list_objects_v2')
         pages = paginator.paginate(Bucket=self.BUCKET_NAME)
