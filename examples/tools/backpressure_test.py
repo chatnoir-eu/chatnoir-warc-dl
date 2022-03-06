@@ -9,6 +9,8 @@ from pipelines.tools.passthrough_model import PassthroughModelPipeline
 SHAPE = (10000000,)  # data shape is so large that unbounded execution would lead to OOM very fast
 
 
+# todo also text multi-dim data
+
 class BackpressureTestPipeline(PassthroughModelPipeline):
 
     def get_bucket_files(self):

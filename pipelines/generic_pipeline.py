@@ -14,7 +14,7 @@ from pyspark import SparkContext, SparkConf
 from helpers import create_s3_client, CounterAccumulatorParam, unpack_dict, pack_dict
 
 
-def gen(q):
+def interleave_join(q, q2):
     while True:
         f = q.get()
         if f is None:
@@ -23,11 +23,19 @@ def gen(q):
         for record_batch in pyarrow.ipc.open_stream(
                 f):  # todo also allow streams of pickle objects using https://stackoverflow.com/a/28745948
             for record in record_batch.to_pylist():
-                yield unpack_dict(record)
+                q2.put(unpack_dict(record))
 
 
-def ds_from_queue(q, signature):
-    ds = tf.data.Dataset.from_generator(lambda: gen(q), output_signature=signature)
+def gen(q2):
+    while True:
+        entry = q2.get()
+        if entry is None:
+            return
+        yield entry
+
+
+def ds_from_queue(q2, signature):
+    ds = tf.data.Dataset.from_generator(lambda: gen(q2), output_signature=signature)
 
     # ds=ds.prefetch(tf.data.AUTOTUNE)#todo does this help?
     return ds
@@ -73,7 +81,6 @@ class Pipeline(abc.ABC):
     @abc.abstractmethod
     def get_model(self):
         pass
-
     @abc.abstractmethod
     def get_signature(self):
         pass
@@ -85,6 +92,7 @@ class Pipeline(abc.ABC):
         self.PORT = s.getsockname()[1]
         s.listen()
         self.q = Queue()
+        self.q2 = Queue(100)  # todo adjust restriction
 
         def server():
             while True:
@@ -95,12 +103,19 @@ class Pipeline(abc.ABC):
 
         threading.Thread(target=server, daemon=True).start()
 
-        base_ds = tf.data.Dataset.range(n_instances)
+        # base_ds = tf.data.Dataset.range(n_instances)
 
-        inverleaved_ds = base_ds.interleave(lambda _: ds_from_queue(self.q, self.get_signature()),
-                                            num_parallel_calls=tf.data.AUTOTUNE,
-                                            deterministic=False,
-                                            cycle_length=n_instances)
+        inverleaved_ds = ds_from_queue(self.q2, self.get_signature())
+
+        #    base_ds.interleave(lambda _: ds_from_queue(self.q,self.get_signature()),
+        #                                    num_parallel_calls=tf.data.AUTOTUNE,
+        #                                    deterministic=False,
+        #                                    cycle_length=n_instances)
+
+        for _ in range(n_instances):
+            threading.Thread(target=lambda: interleave_join(self.q, self.q2),
+                             daemon=True).start()  # todo use multiprocessing in combination with multiprocessing queues
+
         return inverleaved_ds
 
     def batch(self, dataset, batchsize):
@@ -156,6 +171,7 @@ class Pipeline(abc.ABC):
 
         rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST, PORT))
         self.q.put(None)
+        #todo join unpickling processes, then q2.put(None)
 
     def predict(self, model_input, *args):
         """
