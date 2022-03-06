@@ -26,11 +26,11 @@ class TextPipeline(Pipeline, abc.ABC):
 
         super().__init__()
 
-    def get_dataset(self):
-        return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
+    def get_signature(self):
+        return (
             self.get_tokens_spec(),  # text for classification
             tf.TensorSpec(shape=(), dtype=tf.string),  # text for export
-            tf.TensorSpec(shape=(), dtype=tf.string)))  # url
+            tf.TensorSpec(shape=(), dtype=tf.string))  # url
 
     def get_distributed_filter(self):
         def distributed_filter(text):

@@ -29,11 +29,11 @@ class ImagePipeline(Pipeline, abc.ABC):
 
         self.dataset = self.dataset.map(ragged_to_tensor, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
 
-    def get_dataset(self):
-        return tf.data.Dataset.from_generator(self.driver_generator, output_signature=(
+    def get_signature(self):
+        return (
             tf.TensorSpec(shape=self.image_size + (3,), dtype=tf.float32),  # resized_image
             tf.RaggedTensorSpec(shape=(None, None, 3), dtype=tf.uint8, ragged_rank=2),  # original_image
-            tf.TensorSpec(shape=(), dtype=tf.string)))  # url
+            tf.TensorSpec(shape=(), dtype=tf.string))  # url
 
     def get_distributed_filter(self):
         def distributed_filter(image):
