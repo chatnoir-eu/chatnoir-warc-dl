@@ -5,6 +5,7 @@ import os
 import socket
 import threading
 import time
+from queue import Queue
 
 import pyarrow
 import tensorflow as tf
@@ -13,45 +14,25 @@ from pyspark import SparkContext, SparkConf
 from helpers import create_s3_client, CounterAccumulatorParam, unpack_dict, pack_dict
 
 
-def driver_server():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # todo use "with"?
-    s.bind(("", 0))
-    HOST = socket.gethostname()
-    PORT = s.getsockname()[1]
-    yield HOST, PORT
-    s.listen()
+def gen(q):
     while True:
-        conn, _ = s.accept()  # todo do we have to close this conn?
-        infile = conn.makefile(mode="rb")  # todo do we have to close this file?
-        # todo backpressure
-        ds = ds_from_file(infile)
-
-        yield ds
-
-
-def ds_from_file(f):
-    def gen():
+        f = q.get()
+        if f is None:
+            q.put(None)
+            return
         for record_batch in pyarrow.ipc.open_stream(
                 f):  # todo also allow streams of pickle objects using https://stackoverflow.com/a/28745948
             for record in record_batch.to_pylist():
-                yield unpack_dict(record)  # todo does this work with cycle_length>1 or do we need another threading?
-
-    return tf.data.Dataset.from_generator(gen, output_signature=(tf.TensorSpec(
-        shape=(10000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
-                                                            dtype=tf.string)))
+                yield unpack_dict(record)
 
 
-def complete_ds():
-    serv = driver_server()
-    HOST, PORT = next(serv)
+def ds_from_queue(q, signature):
+    ds = tf.data.Dataset.from_generator(lambda: gen(q), output_signature=signature)
 
-    serv_ds = tf.data.Dataset.from_generator(lambda: serv, output_signature=tf.data.DatasetSpec((tf.TensorSpec(
-        shape=(10000000,), dtype=tf.float32), tf.TensorSpec(shape=(),
-                                                            dtype=tf.string))))  # todo using lambda here is ugly. rather create socket outside of driver_server and pass it.
+    # ds=ds.prefetch(tf.data.AUTOTUNE)#todo does this help?
+    return ds
 
-    complete_ds = serv_ds.interleave(tf.function(lambda dataset: dataset), num_parallel_calls=tf.data.AUTOTUNE,
-                                     deterministic=False)  #todo could a too high cycle_length result in a deadlock?
-    return HOST, PORT, complete_ds
+
 
 
 class Pipeline(abc.ABC):
@@ -79,7 +60,7 @@ class Pipeline(abc.ABC):
         self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
 
         self.model = self.get_model()
-        self.HOST, self.PORT, self.dataset = complete_ds()
+        self.dataset = self.complete_ds(int(config["pyspark"]["SPARK_INSTANCES"]))
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
         self.dataset = self.batch(self.dataset, self.BATCHSIZE)
 
@@ -92,6 +73,35 @@ class Pipeline(abc.ABC):
     @abc.abstractmethod
     def get_model(self):
         pass
+
+    @abc.abstractmethod
+    def get_signature(self):
+        pass
+
+    def complete_ds(self, n_instances):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # todo use "with"?
+        s.bind(("", 0))
+        self.HOST = socket.gethostname()
+        self.PORT = s.getsockname()[1]
+        s.listen()
+        self.q = Queue()
+
+        def server():
+            while True:
+                conn, _ = s.accept()  # todo do we have to close this conn?
+                infile = conn.makefile(mode="rb")  # todo do we have to close this file?
+                # todo backpressure
+                self.q.put(infile)
+
+        threading.Thread(target=server, daemon=True).start()
+
+        base_ds = tf.data.Dataset.range(n_instances)
+
+        inverleaved_ds = base_ds.interleave(lambda _: ds_from_queue(self.q, self.get_signature()),
+                                            num_parallel_calls=tf.data.AUTOTUNE,
+                                            deterministic=False,
+                                            cycle_length=n_instances)
+        return inverleaved_ds
 
     def batch(self, dataset, batchsize):
         return dataset.batch(batchsize)
@@ -145,11 +155,7 @@ class Pipeline(abc.ABC):
                     writer.close()  # todo does this have to use a finally statement?
 
         rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST, PORT))
-        #self.q.put(None) #todo somehow stop the server
-
-    @abc.abstractmethod
-    def get_dataset(self):
-        pass
+        self.q.put(None)
 
     def predict(self, model_input, *args):
         """
