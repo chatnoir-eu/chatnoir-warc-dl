@@ -131,7 +131,7 @@ class Pipeline(abc.ABC):
         def print_stats():
             while True:
                 time.sleep(10)
-                print(self.acc_counter)  # todo prettyfy
+                print("accumulator:", self.acc_counter)
                 print("queue size:",
                       self.q2.qsize())  # todo show in percent and give advice on regulating SPARK_INSTANCES or num_GPUs
 
