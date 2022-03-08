@@ -69,6 +69,10 @@ class Pipeline(abc.ABC):
         self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
 
         self.model = self.get_model()
+
+        self.q = Queue()
+        self.q2 = Queue(int(config["switch"]["QUEUE_SIZE"]))
+
         self.dataset = self.complete_ds(int(config["pyspark"]["SPARK_INSTANCES"]))
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
         self.dataset = self.batch(self.dataset, self.BATCHSIZE)
@@ -92,8 +96,6 @@ class Pipeline(abc.ABC):
         self.HOST = socket.gethostname()
         self.PORT = s.getsockname()[1]
         s.listen()
-        self.q = Queue()
-        self.q2 = Queue(100)  # todo make configurable
 
         def server():
             while True:
