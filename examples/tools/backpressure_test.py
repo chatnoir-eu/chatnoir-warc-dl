@@ -15,10 +15,10 @@ class BackpressureTestPipeline(PassthroughModelPipeline):
         return [f"file_{i}" for i in range(10)]
 
     def get_generator_factory(self):
-        def generator_factory(file_name):
+        def generator_factory(file_identifier):
             for i in range(100):
                 payload = np.empty(SHAPE, dtype=np.float32)
-                descriptor = f"no {i} in {file_name}"
+                descriptor = f"no {i} in {file_identifier}"
                 time.sleep(.1)
                 yield payload, descriptor
 

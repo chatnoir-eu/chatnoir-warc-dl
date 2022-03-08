@@ -12,7 +12,8 @@ def create_s3_client(AWS_ACCESS_KEY_ID, AWS_SECRET, ENDPOINT_URL):
     )
 
 
-def get_file_stream(s3_client, bucket, key):
+def get_file_stream(s3_client, file_identifier):
+    bucket, key = file_identifier
     response = s3_client.get_object(
         Bucket=bucket,
         Key=key

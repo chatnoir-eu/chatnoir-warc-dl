@@ -49,15 +49,14 @@ class ImagePipeline(Pipeline, abc.ABC):
         image_size = self.image_size
         max_content_length = self.max_content_length
         distributed_filter = self.get_distributed_filter()
-        BUCKET_NAME = self.BUCKET_NAME
         AWS_ACCESS_KEY_ID = self.AWS_ACCESS_KEY_ID
         AWS_SECRET = self.AWS_SECRET
         ENDPOINT_URL = self.ENDPOINT_URL
         acceptable_types = ['image/jpeg', 'image/gif', 'image/bmp', 'image/png']
 
-        def generator_factory(file_name):
+        def generator_factory(file_identifier):
             s3_client = create_s3_client(AWS_ACCESS_KEY_ID, AWS_SECRET, ENDPOINT_URL)
-            stream = get_file_stream(s3_client, BUCKET_NAME, file_name)
+            stream = get_file_stream(s3_client, file_identifier)
             for record in ArchiveIterator(stream, max_content_length=max_content_length):
                 try:
                     if record.headers is None:

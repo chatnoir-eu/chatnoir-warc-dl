@@ -1,6 +1,7 @@
 import abc
 import collections
 import configparser
+import json
 import os
 import pickle
 import socket
@@ -50,7 +51,7 @@ class Pipeline(abc.ABC):
         config = configparser.ConfigParser()
         config.read('config.ini')
 
-        self.BUCKET_NAME = config["s3"]["BUCKET_NAME"]
+        self.BUCKET_NAMES = json.loads(config["s3"]["BUCKET_NAMES"])
         self.AWS_ACCESS_KEY_ID = config["s3"]["AWS_ACCESS_KEY_ID"]
         self.AWS_SECRET = config["s3"]["AWS_SECRET"]
         self.ENDPOINT_URL = config["s3"]["ENDPOINT_URL"]
@@ -150,10 +151,13 @@ class Pipeline(abc.ABC):
         pass
 
     def get_bucket_files(self):  # todo support multiple bucket names
-        s3_client = create_s3_client(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET, self.ENDPOINT_URL)
-        paginator = s3_client.get_paginator('list_objects_v2')
-        pages = paginator.paginate(Bucket=self.BUCKET_NAME)
-        return [obj['Key'] for page in pages for obj in page['Contents']]
+        filenames = []
+        for BUCKET_NAME in self.BUCKET_NAMES:
+            s3_client = create_s3_client(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET, self.ENDPOINT_URL)
+            paginator = s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=BUCKET_NAME)
+            filenames += [(BUCKET_NAME, obj['Key']) for page in pages for obj in page['Contents']]
+        return filenames
 
     def feed_executors(self):
         files = self.get_bucket_files()
@@ -168,7 +172,7 @@ class Pipeline(abc.ABC):
                     for record in generator:
                         pickle.dump(record, outfile)
 
-        rdd.foreach(lambda filename: node_client(generator_factory(filename), HOST, PORT))
+        rdd.foreach(lambda file_identifier: node_client(generator_factory(file_identifier), HOST, PORT))
         self.q.put(None)
         #todo join unpickling processes, then q2.put(None)
 
