@@ -15,7 +15,7 @@ from pyspark import SparkContext, SparkConf
 from helpers import create_s3_client, CounterAccumulatorParam
 
 
-def interleave_join(q, q2):
+def gen(q):
     while True:
         f = q.get()
         if f is None:
@@ -23,21 +23,13 @@ def interleave_join(q, q2):
             return
         while True:
             try:
-                q2.put(pickle.load(f))
+                yield pickle.load(f)
             except EOFError:
                 break
 
 
-def gen(q2):
-    while True:
-        entry = q2.get()
-        if entry is None:
-            return
-        yield entry
-
-
-def ds_from_queue(q2, signature):
-    ds = tf.data.Dataset.from_generator(lambda: gen(q2), output_signature=signature)
+def ds_from_queue(q, signature):
+    ds = tf.data.Dataset.from_generator(lambda: gen(q), output_signature=signature)
 
     # ds=ds.prefetch(tf.data.AUTOTUNE)#todo does this help?
     return ds
@@ -72,7 +64,6 @@ class Pipeline(abc.ABC):
         self.model = self.get_model()
 
         self.q = Queue()
-        self.q2 = Queue(int(config["switch"]["QUEUE_SIZE"]))
 
         self.dataset = self.complete_ds(int(config["pyspark"]["SPARK_INSTANCES"]))
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
@@ -107,20 +98,14 @@ class Pipeline(abc.ABC):
 
         threading.Thread(target=server, daemon=True).start()
 
-        # base_ds = tf.data.Dataset.range(n_instances)
+        base_ds = tf.data.Dataset.range(n_instances)
 
-        inverleaved_ds = ds_from_queue(self.q2, self.get_signature())
+        interleaved_ds = base_ds.interleave(lambda _: ds_from_queue(self.q, self.get_signature()),
+                                            num_parallel_calls=tf.data.AUTOTUNE,
+                                            deterministic=False,
+                                            cycle_length=n_instances)
 
-        #    base_ds.interleave(lambda _: ds_from_queue(self.q,self.get_signature()),
-        #                                    num_parallel_calls=tf.data.AUTOTUNE,
-        #                                    deterministic=False,
-        #                                    cycle_length=n_instances)
-
-        for _ in range(n_instances):
-            threading.Thread(target=lambda: interleave_join(self.q, self.q2),
-                             daemon=True).start()  # todo use multiprocessing in combination with multiprocessing queues
-
-        return inverleaved_ds
+        return interleaved_ds
 
     def batch(self, dataset, batchsize):
         return dataset.batch(batchsize)
@@ -132,8 +117,6 @@ class Pipeline(abc.ABC):
             while True:
                 time.sleep(10)
                 print("accumulator:", self.acc_counter)
-                print("queue size:",
-                      self.q2.qsize())  # todo show in percent and give advice on regulating SPARK_INSTANCES or num_GPUs
 
         threading.Thread(target=print_stats, daemon=True).start()
 
@@ -174,7 +157,6 @@ class Pipeline(abc.ABC):
 
         rdd.foreach(lambda file_identifier: node_client(generator_factory(file_identifier), HOST, PORT))
         self.q.put(None)
-        #todo join unpickling processes, then q2.put(None)
 
     def predict(self, model_input, *args):
         """
