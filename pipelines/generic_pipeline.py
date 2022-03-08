@@ -150,7 +150,7 @@ class Pipeline(abc.ABC):
         """
         pass
 
-    def get_bucket_files(self):  # todo support multiple bucket names
+    def get_bucket_files(self):
         filenames = []
         for BUCKET_NAME in self.BUCKET_NAMES:
             s3_client = create_s3_client(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET, self.ENDPOINT_URL)
