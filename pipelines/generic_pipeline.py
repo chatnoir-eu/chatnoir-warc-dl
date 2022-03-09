@@ -18,32 +18,34 @@ from helpers import create_s3_client, CounterAccumulatorParam
 class Pipeline(abc.ABC):
     def __init__(self):
 
-        config = configparser.ConfigParser()
-        config.read('config.ini')
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
 
-        self.BUCKET_NAMES = json.loads(config["s3"]["BUCKET_NAMES"])
-        self.AWS_ACCESS_KEY_ID = config["s3"]["AWS_ACCESS_KEY_ID"]
-        self.AWS_SECRET = config["s3"]["AWS_SECRET"]
-        self.ENDPOINT_URL = config["s3"]["ENDPOINT_URL"]
+        self.BUCKET_NAMES = json.loads(self.config["s3"]["BUCKET_NAMES"])
+        self.AWS_ACCESS_KEY_ID = self.config["s3"]["AWS_ACCESS_KEY_ID"]
+        self.AWS_SECRET = self.config["s3"]["AWS_SECRET"]
+        self.ENDPOINT_URL = self.config["s3"]["ENDPOINT_URL"]
 
-        # deploy prebuilt dependencies according to
-        # https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
-        os.environ['PYSPARK_PYTHON'] = "./environment/bin/python"
         conf = SparkConf()
-        conf.setAll([("spark.executor.instances", str(config["pyspark"]["SPARK_INSTANCES"])),
-                     ("spark.yarn.dist.archives", "/pyspark_venv.tar.gz#environment")])
+        conf_list = [("spark.executor.instances", str(self.config["pyspark"]["SPARK_INSTANCES"]))]
+        if self.config.getboolean("pyspark", "enable_prebuilt_dependencies"):
+            # deploy prebuilt dependencies according to
+            # https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv
+            os.environ['PYSPARK_PYTHON'] = "./environment/bin/python"
+            conf_list.append(("spark.yarn.dist.archives", "/pyspark_venv.tar.gz#environment"))
+        conf.setAll(conf_list)
         self.sc = SparkContext(master="yarn", appName="web-archive-keras", conf=conf)
         self.sc.addPyFile("helpers.py")
 
         self.acc_counter = self.sc.accumulator(collections.Counter(), CounterAccumulatorParam())
 
-        self.BATCHSIZE = int(config["tensorflow"]["BATCHSIZE"])
+        self.BATCHSIZE = int(self.config["tensorflow"]["BATCHSIZE"])
 
         self.model = self.get_model()
 
         self.q = Queue()
 
-        self.dataset = self.complete_ds(int(config["pyspark"]["SPARK_INSTANCES"]))
+        self.dataset = self.complete_ds(int(self.config["pyspark"]["SPARK_INSTANCES"]))
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
         self.dataset = self.batch(self.dataset, self.BATCHSIZE)
 
@@ -61,7 +63,7 @@ class Pipeline(abc.ABC):
         pass
 
     def complete_ds(self, n_instances):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # todo use "with"?
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(("", 0))
         self.HOST = socket.gethostname()
         self.PORT = s.getsockname()[1]
@@ -69,9 +71,8 @@ class Pipeline(abc.ABC):
 
         def server():
             while True:
-                conn, _ = s.accept()  # todo do we have to close this conn?
-                infile = conn.makefile(mode="rb")  # todo do we have to close this file?
-                # todo backpressure
+                conn, _ = s.accept()
+                infile = conn.makefile(mode="rb")
                 self.q.put(infile)
 
         threading.Thread(target=server, daemon=True).start()
@@ -88,11 +89,12 @@ class Pipeline(abc.ABC):
                     try:
                         yield pickle.load(f)
                     except EOFError:
+                        f.close()
                         break
 
         def ds_from_queue(q, signature):
             ds = tf.data.Dataset.from_generator(lambda: gen(q), output_signature=signature)
-            # ds=ds.prefetch(tf.data.AUTOTUNE)#todo does this help?
+            # maybe another prefetch is helpful here?
             return ds
 
         interleaved_ds = base_ds.interleave(lambda _: ds_from_queue(self.q, self.get_signature()),
@@ -114,6 +116,21 @@ class Pipeline(abc.ABC):
                 print("accumulator:", self.acc_counter)
 
         threading.Thread(target=print_stats, daemon=True).start()
+
+        def profiler():
+            options = tf.profiler.experimental.ProfilerOptions(host_tracer_level=3,
+                                                               python_tracer_level=1,
+                                                               device_tracer_level=1,
+                                                               delay_ms=int(self.config.getfloat("profiler",
+                                                                                                 "logging_delay_s") * 1000))
+            os.makedirs('./data/logs/', exist_ok=True)
+            tf.profiler.experimental.start('./data/logs/', options=options)
+            time.sleep(self.config.getfloat("profiler", "logging_delay_s") \
+                       + self.config.getfloat("profiler", "logging_duration_s"))
+            tf.profiler.experimental.stop()
+
+        if self.config.getboolean("profiler", "enable_logging"):
+            threading.Thread(target=profiler).start()
 
     def run(self):
         self.start_threads()
