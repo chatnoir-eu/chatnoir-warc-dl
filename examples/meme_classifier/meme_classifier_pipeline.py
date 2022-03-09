@@ -39,7 +39,7 @@ class MemeClassifierPipeline(ImagePipeline):
         return distributed_filter
 
     def filter(self, prediction, *args):
-        return tf.reshape(prediction > .9, ())
+        return tf.reshape(prediction > .95, ())
 
 
 if __name__ == "__main__":
