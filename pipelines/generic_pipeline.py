@@ -108,7 +108,7 @@ class Pipeline(abc.ABC):
         return interleaved_ds
 
     def batch(self, dataset, batchsize):
-        return dataset.batch(batchsize)
+        return dataset.batch(batchsize, drop_remainder=True)
 
     def start_threads(self):
         threading.Thread(target=self.feed_executors, daemon=True).start()
