@@ -33,7 +33,7 @@ class HatespeechClassifierPipeline(TextPipeline):
                 'attention_mask': tf.TensorSpec(shape=(None,), dtype=tf.int32)}
 
     def batch(self, dataset, batchsize):
-        return dataset.padded_batch(batchsize)
+        return dataset.padded_batch(batchsize, drop_remainder=True)
 
     def get_tokenizer(self):
         tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english",
