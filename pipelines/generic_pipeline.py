@@ -15,28 +15,6 @@ from pyspark import SparkContext, SparkConf
 from helpers import create_s3_client, CounterAccumulatorParam
 
 
-def gen(q):
-    while True:
-        f = q.get()
-        if f is None:
-            q.put(None)
-            return
-        while True:
-            try:
-                yield pickle.load(f)
-            except EOFError:
-                break
-
-
-def ds_from_queue(q, signature):
-    ds = tf.data.Dataset.from_generator(lambda: gen(q), output_signature=signature)
-
-    # ds=ds.prefetch(tf.data.AUTOTUNE)#todo does this help?
-    return ds
-
-
-
-
 class Pipeline(abc.ABC):
     def __init__(self):
 
@@ -99,6 +77,24 @@ class Pipeline(abc.ABC):
         threading.Thread(target=server, daemon=True).start()
 
         base_ds = tf.data.Dataset.range(n_instances)
+
+        def ds_from_queue(q, signature):
+            def gen(q):
+                while True:
+                    f = q.get()
+                    if f is None:
+                        q.put(None)
+                        return
+                    while True:
+                        try:
+                            yield pickle.load(f)
+                        except EOFError:
+                            break
+
+            ds = tf.data.Dataset.from_generator(lambda: gen(q), output_signature=signature)
+
+            # ds=ds.prefetch(tf.data.AUTOTUNE)#todo does this help?
+            return ds
 
         interleaved_ds = base_ds.interleave(lambda _: ds_from_queue(self.q, self.get_signature()),
                                             num_parallel_calls=tf.data.AUTOTUNE,
