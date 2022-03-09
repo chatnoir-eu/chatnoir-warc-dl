@@ -144,7 +144,7 @@ class Pipeline(abc.ABC):
 
     def feed_executors(self):
         files = self.get_bucket_files()
-        rdd = self.sc.parallelize(files, len(files))
+        rdd = self.sc.parallelize(files)
         generator_factory = self.get_generator_factory()
         HOST, PORT = self.HOST, self.PORT
 
