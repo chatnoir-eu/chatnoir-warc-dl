@@ -8,9 +8,6 @@ RUN curl https://dlcdn.apache.org/hadoop/common/hadoop-2.10.1/hadoop-2.10.1.tar.
     && tar -zxvf hadoop-2.10.1.tar.gz --directory /opt \
     && rm hadoop-2.10.1.tar.gz
 
-COPY hadoop /etc/hadoop/
-ENV HADOOP_CONF_DIR "/etc/hadoop/"
-
 RUN add-apt-repository ppa:deadsnakes/ppa
 
 ARG DEBIAN_FRONTEND=noninteractive
