@@ -5,13 +5,13 @@ processed. This allows to quickly retrieve data (text or images) from the WARC f
 a deep learning model.
 
 Code for a simple image classification pipeline and a Huggingface text transformer pipeline is provided
-in [examples](../examples). It is easily adaptable to support other custom Keras models.
+in [examples](examples). It is easily adaptable to support other custom Keras models.
 
 ## General Functionality
 
 The pipeline architecture can be described as follows:
 
-![Pipeline architecture](./architecture.svg)
+![Pipeline architecture](docs/architecture.svg)
 
 - Using PySpark, the WARC files are distributed among the CPU cluster workers.
 - These workers use FastWARC to iterate over the records and apply a first CPU-based filter.
@@ -57,7 +57,8 @@ The pipeline must be run from the GPU server (or from within a Docker container 
 `cd` into the repository's toplevel directory. It is important to use the correct `PYTHONPATH`. You can run the image
 classification example using
 
-	PYTHONPATH=. HADOOP_CONF_DIR=./hadoop/ HADOOP_USER_NAME=$USER python3 examples/meme_classifier/meme_classifier_pipeline.py
+	PYTHONPATH=. HADOOP_CONF_DIR=./hadoop/ HADOOP_USER_NAME=$USER \
+    python3 examples/meme_classifier/meme_classifier_pipeline.py
 
 ## Profiling
 
@@ -86,8 +87,8 @@ to free up resources.
 
 ## Adding Custom Keras Models
 
-You can easily use custom Keras models for the classification. See the [example pipelines](../examples) for image and
-text based classifiers.
+You can easily use custom Keras models for the classification. See the [example pipelines](examples) for image and text
+based classifiers.
 
 ## Writing Code for the Nodes
 
@@ -97,12 +98,12 @@ for the extraction of data from the WARC files and the CPU-based preprocessing s
 Please be aware that the custom code will be pickled by PySpark to be sent to the workers. This also means that you can
 not use certain objects like `self` in the pipelines. Best practice is to copy all values that you need from `self` into
 local variables and then defining a function that uses these values - either inside
-the `Pipeline.get_generator_factory()` method itself or in the [`helpers.py`](../helpers.py), from where you can safely
-use imported methods as it is explicitly distributed to the workers.
+the `Pipeline.get_generator_factory()` method itself or in the [`helpers.py`](helpers.py), from where you can safely use
+imported methods as it is explicitly distributed to the workers.
 
 If you would like to use additional Python packages on the workers, we
 recommend [distributing a venv archive](https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv)
-. For the packages listed in the [`requirements.txt`](../requirements.txt), there is a prebuilt archive available inside
+. For the packages listed in the [`requirements.txt`](requirements.txt), there is a prebuilt archive available inside
 the prebuilt Docker image (defined by the Dockerfile). The property in the `config.ini` for using this method
 is `enable_prebuilt_dependencies = yes`.
 
