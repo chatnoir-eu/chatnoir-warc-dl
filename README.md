@@ -109,4 +109,6 @@ is `enable_prebuilt_dependencies = yes`.
 
 ## Planned Features
 
-– Model training – Multi-GPU – Combining text and image information
+- Model training
+- Multi-GPU
+- Combining text and image information
