@@ -32,8 +32,7 @@ To run the pipeline, the following hardware/software setup is required:
 - WARC files in an S3 storage
 
 For the GPU
-server, [a Docker image is provided](https://github.com/niklasdeckers/web-archive-keras/pkgs/container/web-archive-keras)
-.
+server, [a Docker image is provided](https://github.com/niklasdeckers/web-archive-keras/pkgs/container/web-archive-keras).
 
 Alternatively, you can install the required Python packages using
 
@@ -102,8 +101,8 @@ the `Pipeline.get_generator_factory()` method itself or in the [`helpers.py`](he
 imported methods as it is explicitly distributed to the workers.
 
 If you would like to use additional Python packages on the workers, we
-recommend [distributing a venv archive](https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv)
-. For the packages listed in the [`requirements.txt`](requirements.txt), there is a prebuilt archive available inside
+recommend [distributing a venv archive](https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv).
+For the packages listed in the [`requirements.txt`](requirements.txt), there is a prebuilt archive available inside
 the prebuilt Docker image (defined by the Dockerfile). The property in the `config.ini` for using this method
 is `enable_prebuilt_dependencies = yes`.
 
