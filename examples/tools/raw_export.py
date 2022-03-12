@@ -2,7 +2,7 @@ from pipelines.image_pipeline import ImagePipeline
 from pipelines.tools.export_dataset import ExportDatasetPipeline
 from pipelines.tools.passthrough_model import PassthroughModelPipeline
 
-
+# This class is used to test the direct storage of a dataset from the image pipeline.
 class ImageRawExportPipeline(PassthroughModelPipeline, ExportDatasetPipeline, ImagePipeline):
     pass
 

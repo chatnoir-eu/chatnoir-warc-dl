@@ -11,6 +11,11 @@ from pipelines.tools.passthrough_model import PassthroughModelPipeline
 
 
 class RegexCounterPipeline(PassthroughModelPipeline, TextPipeline):
+    """
+    This pipeline allows to search for regex occurrences within the texts from the text pipeline.
+    The texts are discarded; only the count is reported.
+    No GPU functionality is used.
+    """
 
     def __init__(self, regex, out_dir):
         self.regex = regex

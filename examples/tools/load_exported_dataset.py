@@ -4,6 +4,9 @@ import tensorflow as tf
 
 
 def iterate_over_sharded_dataset(dataset_dir):
+    """
+    Iterates over a previously saved dataset.
+    """
     dataset = tf.data.experimental.load(dataset_dir)
     try:
         for data in dataset.as_numpy_iterator():

@@ -10,6 +10,10 @@ SHAPE = (10000000,)  # data shape is so large that unbounded execution would lea
 
 
 class BackpressureTestPipeline(PassthroughModelPipeline):
+    """
+    This pipeline tests the ability of the node workers to wait for the driver to process data before continuing with
+    the iteration and consuming more memory.
+    """
 
     def get_bucket_files(self):
         return [f"file_{i}" for i in range(10)]
