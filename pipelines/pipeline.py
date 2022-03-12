@@ -16,6 +16,12 @@ from helpers import create_s3_client, CounterAccumulatorParam
 
 
 class Pipeline(abc.ABC):
+    """
+    Generic Pipeline class. Provides base functionality for the web-archive-keras pipeline.
+    Other pipelines should inherit from this class.
+    To execute the pipeline, use run().
+    """
+
     def __init__(self):
 
         self.config = configparser.ConfigParser()
@@ -43,7 +49,7 @@ class Pipeline(abc.ABC):
 
         self.model = self.get_model()
 
-        self.q = Queue()
+        self.q = Queue()  # will keep the file representations of the TCP connections on the driver
 
         self.dataset = self.get_interleaved_dataset(int(self.config["pyspark"]["SPARK_INSTANCES"]))
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
@@ -57,9 +63,17 @@ class Pipeline(abc.ABC):
 
     @abc.abstractmethod
     def get_model(self):
+        """
+        Should return the Keras model used for prediction.
+        """
         pass
+
     @abc.abstractmethod
     def get_signature(self):
+        """
+        Should return the tf.TensorSpec that is used to pipe the data from the CPU workers into a tf.data.Dataset.
+        The tf.TensorSpec should resemble the values yielded by the generator from get_generator_factory().
+        """
         pass
 
     def get_interleaved_dataset(self, n_instances):
@@ -105,10 +119,17 @@ class Pipeline(abc.ABC):
         return interleaved_ds
 
     def batch(self, dataset, batchsize):
+        """
+        Batches the tf.data.Dataset. This can be overridden to use padded_batch.
+        """
         return dataset.batch(batchsize, drop_remainder=True)
 
     def start_threads(self):
-        threading.Thread(target=self.feed_executors, daemon=True).start()
+        """
+        Starts (mostly daemon) threads on the driver, used for controlling the cluster nodes and logging.
+        """
+
+        threading.Thread(target=self.feed_cluster_nodes, daemon=True).start()
 
         def print_stats():
             while True:
@@ -140,8 +161,12 @@ class Pipeline(abc.ABC):
     @abc.abstractmethod
     def get_generator_factory(self):
         """
-        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first#todo rework this description
-        :return:
+        Should return a generator method (a function that uses yield), which is executed on the pyspark cluster nodes.
+        The argument of the generator method is a file_identifier for the S3, a tuple of bucket and key. It should be
+        used with get_file_stream from the helpers.py.
+        The yielded values of the generator are streamed to the driver/GPU.
+        The returned generator must not use self. Needed attributes of self should be extracted into variables
+        outside of the definition of the generator, which may then use these variables.
         """
         pass
 
@@ -172,18 +197,26 @@ class Pipeline(abc.ABC):
 
     def predict(self, model_input, *args):
         """
-        For the prediction, the model input is expected to be at the first position in the dataset structure
-        :param model_input:
-        :param args:
-        :return:
+        For the prediction, the model input is expected to be at the first position in the dataset structure as this
+        function is directly mapped on the dataset. This allows to pass data around the model by having it end up in
+        *args. This is useful for exporting metadata or raw data after the classification.
         """
         prediction = self.model(model_input, training=False)
         return prediction, *args
 
     @abc.abstractmethod
-    def filter(self, *args):
+    def filter(self, prediction, *args):
+        """
+        Filter that is applied on single (unbatched) samples after the classification.
+        Should return a tf boolean scalar.
+        Normally, this should resemble thresholding.
+        """
         pass
 
     @abc.abstractmethod
-    def export(self, *args):
+    def export(self, prediction, *args):
+        """
+        Export single (unbatched) samples after classification and thresholding.
+        Will be called with numpy values that result from the use of as_numpy_iterator() in run().
+        """
         pass
