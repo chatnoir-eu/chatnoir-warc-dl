@@ -13,6 +13,12 @@ from pipelines.generic_pipeline import Pipeline
 
 
 class ImagePipeline(Pipeline, abc.ABC):
+    """
+    This pipeline extracts images from the WARC files. It streams the following to the driver/GPU:
+    A version of the image that is resized to image_size and normalized to 1.0 (useful for neural network input),
+    the original uint8 version of the image using a RaggedTensor format (variable image size) to allow batching,
+    the image url.
+    """
 
     def __init__(self, image_size, out_dir, max_content_length):
         self.image_size = image_size
@@ -35,16 +41,18 @@ class ImagePipeline(Pipeline, abc.ABC):
             tf.TensorSpec(shape=(), dtype=tf.string))  # url
 
     def get_distributed_filter(self):
+        """
+        Overridable method that provides a filter, which is executed on the pyspark cluster nodes.
+        The returned distributed_filter must not use self. Needed attributes of self should be extracted into variables
+        outside of the definition of distributed_filter, which may then use these variables.
+        """
+
         def distributed_filter(image):
             return True
 
         return distributed_filter
 
     def get_generator_factory(self):
-        """
-        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first #todo rework this description
-        :return:
-        """
         acc_counter = self.acc_counter
         image_size = self.image_size
         max_content_length = self.max_content_length

@@ -16,6 +16,13 @@ from pipelines.generic_pipeline import Pipeline
 
 
 class TextPipeline(Pipeline, abc.ABC):
+    """
+    This pipeline extracts texts from websites from the WARC files. It streams the following to the driver/GPU:
+    An (optionally tokenized) version of the website text, which should be as clean as possible (useful for neural
+    network input),
+    a original version of the text as a string,
+    the website url.
+    """
 
     def __init__(self, out_dir, max_content_length):
         self.out_dir = out_dir
@@ -32,25 +39,38 @@ class TextPipeline(Pipeline, abc.ABC):
             tf.TensorSpec(shape=(), dtype=tf.string))  # url
 
     def get_distributed_filter(self):
+        """
+        Overridable method that provides a filter, which is executed on the pyspark cluster nodes.
+        The returned distributed_filter must not use self. Needed attributes of self should be extracted into variables
+        outside of the definition of distributed_filter, which may then use these variables.
+        """
+
         def distributed_filter(text):
             return True
 
         return distributed_filter
 
     def get_tokens_spec(self):
+        """
+        Overridable method that returns a tf.TensorSpec which corresponds to the values returned by the tokenizer
+        defined in get_tokenizer().
+        """
+
         return tf.TensorSpec(shape=(), dtype=tf.string)
 
     def get_tokenizer(self):
+        """
+        Overridable method that provides a tokenizer, which is executed on the pyspark cluster nodes.
+        The returned tokenizer must not use self. Needed attributes of self should be extracted into variables
+        outside of the definition of tokenizer, which may then use these variables.
+        """
+
         def tokenizer(text):
             return text
 
         return tokenizer
 
     def get_generator_factory(self):
-        """
-        return value is a generator that must not use any self.* attributes. Those must be copied to variables outside of the generator first #todo rework this description
-        :return:
-        """
         acc_counter = self.acc_counter
         max_content_length = self.max_content_length
         distributed_filter = self.get_distributed_filter()
