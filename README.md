@@ -1,6 +1,6 @@
 # web-archive-keras
 
-This pipeline allows to extract data from WARC files on a CPU cluster and to stream it to a GPU server, where it is
+This pipeline allows extracting data from WARC files on a CPU cluster and streaming it to a GPU server, where it is
 processed. This allows to quickly retrieve data (text or images) from the WARC files that gets classified as positive by
 a deep learning model.
 
