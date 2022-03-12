@@ -9,7 +9,7 @@ import tensorflow as tf
 from fastwarc.warc import ArchiveIterator
 
 from helpers import get_file_stream, create_s3_client
-from pipelines.generic_pipeline import Pipeline
+from pipelines.pipeline import Pipeline
 
 
 class ImagePipeline(Pipeline, abc.ABC):

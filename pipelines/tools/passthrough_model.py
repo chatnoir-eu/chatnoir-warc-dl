@@ -2,7 +2,7 @@ import abc
 
 import tensorflow as tf
 
-from pipelines.generic_pipeline import Pipeline
+from pipelines.pipeline import Pipeline
 
 
 class PassthroughModelPipeline(Pipeline, abc.ABC):

@@ -12,7 +12,7 @@ from resiliparse.parse.html import HTMLTree
 from resiliparse.process_guard import time_guard, MemoryLimitExceeded, ExecutionTimeout
 
 from helpers import create_s3_client, get_file_stream
-from pipelines.generic_pipeline import Pipeline
+from pipelines.pipeline import Pipeline
 
 
 class TextPipeline(Pipeline, abc.ABC):
