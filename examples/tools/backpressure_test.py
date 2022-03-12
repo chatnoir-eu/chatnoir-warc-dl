@@ -37,7 +37,7 @@ class BackpressureTestPipeline(PassthroughModelPipeline):
         print(args[-1])
 
     def start_threads(self):
-        threading.Thread(target=self.feed_executors, daemon=True).start()
+        threading.Thread(target=self.feed_cluster_nodes, daemon=True).start()
 
 
 if __name__ == "__main__":

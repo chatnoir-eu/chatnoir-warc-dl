@@ -45,7 +45,7 @@ class Pipeline(abc.ABC):
 
         self.q = Queue()
 
-        self.dataset = self.complete_ds(int(self.config["pyspark"]["SPARK_INSTANCES"]))
+        self.dataset = self.get_interleaved_dataset(int(self.config["pyspark"]["SPARK_INSTANCES"]))
         self.dataset = self.dataset.prefetch(tf.data.AUTOTUNE)
         self.dataset = self.batch(self.dataset, self.BATCHSIZE)
 
@@ -62,7 +62,7 @@ class Pipeline(abc.ABC):
     def get_signature(self):
         pass
 
-    def complete_ds(self, n_instances):
+    def get_interleaved_dataset(self, n_instances):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(("", 0))
         self.HOST = socket.gethostname()
@@ -154,13 +154,13 @@ class Pipeline(abc.ABC):
             filenames += [(BUCKET_NAME, obj['Key']) for page in pages for obj in page['Contents']]
         return filenames
 
-    def feed_executors(self):
+    def feed_cluster_nodes(self):
         files = self.get_bucket_files()
         rdd = self.sc.parallelize(files, len(files))
         generator_factory = self.get_generator_factory()
         HOST, PORT = self.HOST, self.PORT
 
-        def node_client(generator, HOST, PORT):
+        def node_client(generator, HOST, PORT):  # feeds the records yielded by the generator to the driver
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((HOST, PORT))
                 with s.makefile(mode="wb") as outfile:
