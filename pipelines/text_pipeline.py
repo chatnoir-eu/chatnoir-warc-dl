@@ -20,7 +20,7 @@ class TextPipeline(Pipeline, abc.ABC):
     This pipeline extracts texts from websites from the WARC files. It streams the following to the driver/GPU:
     An (optionally tokenized) version of the website text, which should be as clean as possible (useful for neural
     network input),
-    a original version of the text as a string,
+    an original version of the text as a string,
     the website url.
     """
 
