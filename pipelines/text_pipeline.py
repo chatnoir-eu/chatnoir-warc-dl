@@ -9,7 +9,6 @@ from fastwarc.warc import ArchiveIterator
 from resiliparse.extract.html2text import extract_plain_text
 from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
-from resiliparse.process_guard import time_guard, MemoryLimitExceeded, ExecutionTimeout
 
 from helpers import create_s3_client, get_file_stream
 from pipelines.pipeline import Pipeline
@@ -94,34 +93,27 @@ class TextPipeline(Pipeline, abc.ABC):
                         content_type = str(record.http_content_type).lower()
                         if content_type.startswith("text/html"):
                             url = str(record.headers['WARC-Target-URI'])
+                            html_bytes = record.reader.read()
                             try:
-                                with time_guard(
-                                        timeout=10):  # , mem_guard(max_memory=1024 * 50, grace_period=2):# todo add back again https://github.com/chatnoir-eu/chatnoir-resiliparse/blob/4f0b3bf7168228c947107bbe459d09d3923fa93e/resiliparse/resiliparse/process_guard.pyx#L75
-                                    html_bytes = record.reader.read()
-                                    try:
-                                        encoding = record.http_charset
-                                        if encoding is None:
-                                            encoding = detect_encoding(html_bytes)
-                                        tree = HTMLTree.parse_from_bytes(html_bytes, encoding)
-                                    except:
-                                        acc_counter.add(Counter({"n_decoding_exception": 1}))
-                                        continue
+                                encoding = record.http_charset
+                                if encoding is None:
+                                    encoding = detect_encoding(html_bytes)
+                                tree = HTMLTree.parse_from_bytes(html_bytes, encoding)
+                            except:
+                                acc_counter.add(Counter({"n_decoding_exception": 1}))
+                                continue
 
-                                    prediction_text = extract_plain_text(tree, preserve_formatting=False,
-                                                                         main_content=True, list_bullets=False,
-                                                                         alt_texts=False, links=False,
-                                                                         form_fields=False, noscript=False)
+                            prediction_text = extract_plain_text(tree, preserve_formatting=False,
+                                                                 main_content=True, list_bullets=False,
+                                                                 alt_texts=False, links=False,
+                                                                 form_fields=False, noscript=False)
 
-                                    export_text = extract_plain_text(tree, preserve_formatting=True, main_content=True,
-                                                                     list_bullets=True, alt_texts=True, links=True,
-                                                                     form_fields=True, noscript=True)
+                            export_text = extract_plain_text(tree, preserve_formatting=True, main_content=True,
+                                                             list_bullets=True, alt_texts=True, links=True,
+                                                             form_fields=True, noscript=True)
 
-                                    if not distributed_filter(prediction_text):
-                                        acc_counter.add(Counter({"n_distributed_filter_not_passed": 1}))
-                                        continue
-
-                            except (ExecutionTimeout, MemoryLimitExceeded):
-                                acc_counter.add(Counter({"n_resiliparse_guard_exceptions": 1}))
+                            if not distributed_filter(prediction_text):
+                                acc_counter.add(Counter({"n_distributed_filter_not_passed": 1}))
                                 continue
 
                             yield tokenizer(prediction_text), export_text, url
