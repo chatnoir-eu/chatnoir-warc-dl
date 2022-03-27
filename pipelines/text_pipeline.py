@@ -100,7 +100,7 @@ class TextPipeline(Pipeline, abc.ABC):
                                     encoding = detect_encoding(html_bytes)
                                 tree = HTMLTree.parse_from_bytes(html_bytes, encoding)
                             except:
-                                acc_counter.add(Counter({"n_decoding_exception": 1}))
+                                acc_counter.add(Counter({"n_parsing_exception": 1}))
                                 continue
 
                             prediction_text = extract_plain_text(tree, preserve_formatting=False,
