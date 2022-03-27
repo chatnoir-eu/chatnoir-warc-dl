@@ -91,7 +91,7 @@ class TextPipeline(Pipeline, abc.ABC):
                         acc_counter.add(Counter({"n_http_headers_none": 1}))
                         continue
                     if record.headers['WARC-Type'] == 'response' and record.content_length >= 128:
-                        content_type = str(record.http_headers.get('Content-Type')).lower()
+                        content_type = str(record.http_content_type).lower()
                         if content_type.startswith("text/html"):
                             url = str(record.headers['WARC-Target-URI'])
                             try:
@@ -99,12 +99,7 @@ class TextPipeline(Pipeline, abc.ABC):
                                         timeout=10):  # , mem_guard(max_memory=1024 * 50, grace_period=2):# todo add back again https://github.com/chatnoir-eu/chatnoir-resiliparse/blob/4f0b3bf7168228c947107bbe459d09d3923fa93e/resiliparse/resiliparse/process_guard.pyx#L75
                                     html_bytes = record.reader.read()
                                     try:
-                                        encoding = None
-                                        for p in content_type.split(';'):
-                                            p = p.strip()
-                                            if p.startswith('charset='):
-                                                encoding = p[8:].lower()
-                                                break
+                                        encoding = record.http_charset
                                         if encoding is None:
                                             encoding = detect_encoding(html_bytes)
                                         tree = HTMLTree.parse_from_bytes(html_bytes, encoding)

@@ -74,7 +74,7 @@ class ImagePipeline(Pipeline, abc.ABC):
                         acc_counter.add(Counter({"n_http_headers_none": 1}))
                         continue
                     if record.headers['WARC-Type'] == 'response' and record.content_length >= 128:
-                        content_type = str(record.http_headers.get('Content-Type')).lower()
+                        content_type = str(record.http_content_type).lower()
                         if content_type.startswith('image/') and any(
                                 content_type.startswith(t) for t in acceptable_types):
                             url = str(record.headers['WARC-Target-URI'])
