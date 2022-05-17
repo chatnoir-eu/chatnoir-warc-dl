@@ -176,7 +176,8 @@ class Pipeline(abc.ABC):
             s3_client = create_s3_client(self.AWS_ACCESS_KEY_ID, self.AWS_SECRET, self.ENDPOINT_URL)
             paginator = s3_client.get_paginator('list_objects_v2')
             pages = paginator.paginate(Bucket=BUCKET_NAME)
-            filenames += [(BUCKET_NAME, obj['Key']) for page in pages for obj in page['Contents']]
+            filenames += [(BUCKET_NAME, obj['Key']) for page in pages for obj in page['Contents'] if
+                          obj['Key'].endswith(".warc.gz")]
         return filenames
 
     def feed_cluster_nodes(self):
