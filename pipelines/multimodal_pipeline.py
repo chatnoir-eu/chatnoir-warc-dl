@@ -1,8 +1,7 @@
 import abc
-import abc
 import base64
+import gzip
 import os
-import sys
 from collections import Counter
 from urllib.parse import urljoin
 
@@ -20,7 +19,7 @@ from pipelines.pipeline import Pipeline
 
 class MultimodalPipeline(Pipeline, abc.ABC):
     """
-    TODO docstring
+    TODO docstrings
     """
 
     def __init__(self, image_size, out_dir, max_content_length):
@@ -156,25 +155,29 @@ class MultimodalPipeline(Pipeline, abc.ABC):
                             tokenized_prediction_text = tokenizer(prediction_text)
 
                             if index is None:
-                                index = dict()  # todo remove
                                 bucket, key = file_identifier
                                 dirname = os.path.dirname(key)
                                 key = os.path.join(dirname, os.path.basename(dirname) + ".cdx.gz")
                                 try:
-                                    with get_file_stream(s3_client, (bucket, key)) as index_stream:
-                                        columns = next(index_stream).strip().split()
-                                        assert columns[0] == "CDX"
-                                        del columns[0]
-                                        url_column = columns.index("a")
-                                        warcfile_column = columns.index("g")
-                                        offset_column = columns.index("V")
-                                        index = dict()  # should contain values ((bucket,key),offset)
-                                        for line in index_stream:
-                                            # acc_counter.add(Counter({"n_lines_read": 1}))#todo remove
-                                            splitted = line.strip().split(" ")
-                                            index[splitted[url_column]] = (
-                                            (bucket, os.path.join(dirname, splitted[warcfile_column])),
-                                            int(splitted[offset_column]))
+                                    with get_file_stream(s3_client, (bucket, key)) as raw_index_stream:
+                                        with gzip.open(raw_index_stream) as index_stream:
+                                            columns = next(index_stream).decode("utf-8").strip().split()
+                                            assert columns[0] == "CDX"
+                                            del columns[0]
+                                            url_column = columns.index("a")
+                                            warcfile_column = columns.index("g")
+                                            offset_column = columns.index("V")
+                                            mimetype_column = columns.index("m")
+                                            index = dict()  # should contain values ((bucket,key),offset)
+                                            for line in index_stream:
+                                                splitted = line.decode("utf-8").strip().split(" ")
+                                                if splitted[mimetype_column] == "warc/revisit":
+                                                    continue
+                                                index[splitted[url_column]] = ((bucket,
+                                                                                os.path.join(os.path.dirname(dirname),
+                                                                                             splitted[
+                                                                                                 warcfile_column])),
+                                                                               int(splitted[offset_column]))
                                 except:
                                     acc_counter.add(Counter({"n_index_file_exception": 1}))
                                     continue
@@ -182,13 +185,11 @@ class MultimodalPipeline(Pipeline, abc.ABC):
                             for img in imgs:
                                 if not img in index:
                                     acc_counter.add(Counter({"n_img_not_found": 1}))
-                                    # acc_counter.add(Counter({img: 1}))#todo remove
                                     continue
                                 warcfile, offset = index[img]
-                                with get_file_stream(s3_client, warcfile) as image_stream:
-                                    image_stream.seek(int(offset))
+                                with get_file_stream(s3_client, warcfile,
+                                                     range=f"bytes={offset}-{offset + max_content_length}") as image_stream:
                                     record = next(ArchiveIterator(image_stream, max_content_length=max_content_length))
-
                                     if record.headers['WARC-Type'] == 'response' and record.content_length >= 128:
                                         content_type = str(record.http_content_type).lower()
                                         if content_type.startswith('image/') and any(
@@ -220,6 +221,10 @@ class MultimodalPipeline(Pipeline, abc.ABC):
                                                    resized), export_text, url, original_image, image_url
 
                                             acc_counter.add(Counter({"n_node_results": 1}))
+                                        else:
+                                            acc_counter.add(Counter({"n_img_wrong_content_type": 1}))
+                                    else:
+                                        acc_counter.add(Counter({"n_img_wrong_warc_type": 1}))
 
                         else:
                             acc_counter.add(Counter({"n_wrong_content_type": 1}))
@@ -227,7 +232,6 @@ class MultimodalPipeline(Pipeline, abc.ABC):
                         acc_counter.add(Counter({"n_wrong_warc_type": 1}))
                 except:
                     acc_counter.add(Counter({"n_unhandled_record_exceptions": 1}))
-                    acc_counter.add(Counter({str(sys.exc_info())[:100]: 1}))  # todo remove
                     continue
             acc_counter.add(Counter({"n_finished_warc_files": 1}))
 

@@ -12,12 +12,19 @@ def create_s3_client(AWS_ACCESS_KEY_ID, AWS_SECRET, ENDPOINT_URL):
     )
 
 
-def get_file_stream(s3_client, file_identifier):
+def get_file_stream(s3_client, file_identifier, range=None):
     bucket, key = file_identifier
-    response = s3_client.get_object(
-        Bucket=bucket,
-        Key=key
-    )
+    if range is None:
+        response = s3_client.get_object(
+            Bucket=bucket,
+            Key=key
+        )
+    else:
+        response = s3_client.get_object(
+            Bucket=bucket,
+            Key=key,
+            Range=range
+        )
     return response['Body']._raw_stream
 
 
