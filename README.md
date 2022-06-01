@@ -32,7 +32,7 @@ To run the pipeline, the following hardware/software setup is required:
 - WARC files in an S3 storage
 
 For the GPU
-server, [a Docker image is provided](https://github.com/niklasdeckers/web-archive-keras/pkgs/container/web-archive-keras).
+server, [a Docker image is provided](https://github.com/webis-de/web-archive-keras/pkgs/container/web-archive-keras).
 
 Alternatively, you can install the required Python packages using
 
