@@ -1,4 +1,4 @@
-# web-archive-keras
+# WARC-DL
 
 This pipeline allows extracting data from WARC files on a CPU cluster and streaming it to a GPU server, where it is
 processed. This allows to quickly retrieve data (text or images) from the WARC files that gets classified as positive by
@@ -32,7 +32,7 @@ To run the pipeline, the following hardware/software setup is required:
 - WARC files in an S3 storage
 
 For the GPU
-server, [a Docker image is provided](https://github.com/webis-de/web-archive-keras/pkgs/container/web-archive-keras).
+server, [a Docker image is provided](https://github.com/webis-de/WARC-DL/pkgs/container/WARC-DL).
 
 Alternatively, you can install the required Python packages using
 
