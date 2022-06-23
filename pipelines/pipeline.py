@@ -17,7 +17,7 @@ from helpers import create_s3_client, CounterAccumulatorParam
 
 class Pipeline(abc.ABC):
     """
-    Generic Pipeline class. Provides base functionality for the web-archive-keras pipeline.
+    Generic Pipeline class. Provides base functionality for the WARC-DL pipeline.
     Other pipelines should inherit from this class.
     To execute the pipeline, use run().
     """
@@ -40,7 +40,7 @@ class Pipeline(abc.ABC):
             os.environ['PYSPARK_PYTHON'] = "./environment/bin/python"
             conf_list.append(("spark.yarn.dist.archives", "/pyspark_venv.tar.gz#environment"))
         conf.setAll(conf_list)
-        self.sc = SparkContext(master="yarn", appName="web-archive-keras", conf=conf)
+        self.sc = SparkContext(master="yarn", appName="WARC-DL", conf=conf)
         self.sc.addPyFile("helpers.py")
 
         self.acc_counter = self.sc.accumulator(collections.Counter(), CounterAccumulatorParam())
