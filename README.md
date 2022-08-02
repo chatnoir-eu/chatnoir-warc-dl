@@ -110,4 +110,3 @@ is `enable_prebuilt_dependencies = yes`.
 
 - Model training
 - Multi-GPU
-- Combining text and image information
