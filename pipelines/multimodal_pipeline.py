@@ -1,6 +1,5 @@
 import abc
 import base64
-import gzip
 import os
 from collections import Counter
 from urllib.parse import urljoin
@@ -13,7 +12,7 @@ from resiliparse.extract.html2text import extract_plain_text
 from resiliparse.parse import detect_encoding
 from resiliparse.parse.html import HTMLTree
 
-from helpers import get_file_stream, create_s3_client
+from helpers import get_file_stream, create_s3_client, build_index
 from pipelines.pipeline import Pipeline
 
 
@@ -155,29 +154,8 @@ class MultimodalPipeline(Pipeline, abc.ABC):
                             tokenized_prediction_text = tokenizer(prediction_text)
 
                             if index is None:
-                                bucket, key = file_identifier
-                                dirname = os.path.dirname(key)
-                                key = os.path.join(dirname, os.path.basename(dirname) + ".cdx.gz")
                                 try:
-                                    with get_file_stream(s3_client, (bucket, key)) as raw_index_stream:
-                                        with gzip.open(raw_index_stream) as index_stream:
-                                            columns = next(index_stream).decode("utf-8").strip().split()
-                                            assert columns[0] == "CDX"
-                                            del columns[0]
-                                            url_column = columns.index("a")
-                                            warcfile_column = columns.index("g")
-                                            offset_column = columns.index("V")
-                                            mimetype_column = columns.index("m")
-                                            index = dict()  # should contain values ((bucket,key),offset)
-                                            for line in index_stream:
-                                                splitted = line.decode("utf-8").strip().split(" ")
-                                                if splitted[mimetype_column] == "warc/revisit":
-                                                    continue
-                                                index[splitted[url_column]] = ((bucket,
-                                                                                os.path.join(os.path.dirname(dirname),
-                                                                                             splitted[
-                                                                                                 warcfile_column])),
-                                                                               int(splitted[offset_column]))
+                                    index = build_index(s3_client, file_identifier)
                                 except:
                                     acc_counter.add(Counter({"n_index_file_exception": 1}))
                                     continue
