@@ -6,3 +6,4 @@ imageio
 fastwarc
 resiliparse
 transformers
+torch
