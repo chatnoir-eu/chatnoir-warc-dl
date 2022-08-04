@@ -57,7 +57,7 @@ The pipeline must be run from the GPU server (or from within a Docker container 
 classification example using
 
 	PYTHONPATH=. HADOOP_CONF_DIR=./hadoop/ HADOOP_USER_NAME=$USER \
-    python3 examples/meme_classifier/meme_classifier_pipeline.py
+    python3 examples/images/meme_classifier_pipeline.py
 
 ## Profiling
 
