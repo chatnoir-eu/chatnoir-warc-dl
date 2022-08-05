@@ -18,7 +18,15 @@ from pipelines.pipeline import Pipeline
 
 class MultimodalPipeline(Pipeline, abc.ABC):
     """
-    TODO docstrings
+    This pipeline extracts html files from the WARC files as well as images (urls + raw image data) that are
+    referenced using img elements in the html files. This requires that there is an appropriately placed CDX index
+    file in .cdx.gz format to allow locating the image. Currently, this is only the case for Internet Archive WARC
+    files. It should not be expected that all images can be located. No attempts will be made by this pipeline to
+    crawl for images online that could not be found. This pipeline streams the following to the driver/GPU: An
+    (optionally tokenized) version of the website text, which should be as clean as possible (useful for neural
+    network input), a version of the image that is resized to image_size and normalized to 1.0 (useful for neural
+    network input), an original version of the text as a string, the website url, the original uint8 version of the
+    image using a RaggedTensor format (variable image size) to allow batching, the image url.
     """
 
     def __init__(self, image_size, out_dir, max_content_length):

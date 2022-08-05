@@ -4,7 +4,9 @@ from pipelines.tools.passthrough_model import PassthroughModelPipeline
 
 class MultimodalPairsExport(PassthroughModelPipeline, MultimodalPipeline):
     """
-    Todo docstring
+    This pipeline exports website texts that reference images through img elements, along with the used image files.
+    Details can be found in the MultimodalPipeline documentation.
+    No DL logic is applied.
     """
 
     def __init__(self):
