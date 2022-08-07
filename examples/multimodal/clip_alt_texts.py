@@ -34,10 +34,13 @@ class ClipAltTexts(Pipeline):
 
     def predict(self, model_inputs, *args):
         def predict_py(input_ids, attention_mask, pixel_values):
-            model_inputs_pt = {"input_ids": torch.tensor(input_ids.numpy()[0], dtype=torch.int64),
-                               "attention_mask": torch.tensor(attention_mask.numpy()[0], dtype=torch.int64),
-                               "pixel_values": torch.tensor(pixel_values.numpy()[0], dtype=torch.float32)}
-            prediction = float(self.model(**model_inputs_pt).logits_per_text[0, 0])
+            try:
+                model_inputs_pt = {"input_ids": torch.tensor(input_ids.numpy()[0], dtype=torch.int64),
+                                   "attention_mask": torch.tensor(attention_mask.numpy()[0], dtype=torch.int64),
+                                   "pixel_values": torch.tensor(pixel_values.numpy()[0], dtype=torch.float32)}
+                prediction = float(self.model(**model_inputs_pt).logits_per_text[0, 0])
+            except:
+                return 0
             return prediction
 
         prediction = tf.reshape(tf.py_function(predict_py, inp=model_inputs, Tout=tf.float64), [-1, ])
