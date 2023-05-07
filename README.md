@@ -110,3 +110,20 @@ is `enable_prebuilt_dependencies = yes`.
 
 - Model training
 - Multi-GPU
+
+## Please Cite
+
+If you use this software library, please cite the [paper](https://arxiv.org/abs/2209.12299):
+
+```
+@InProceedings{deckers:2022a,
+  author =                   {Niklas Deckers and Martin Potthast},
+  booktitle =                {4th International Symposium on Open Search Technology (OSSYM 2022)},
+  editor =                   {Andreas Wagner and Christian Guetl and Michael Granitzer and Stefan Voigt},
+  month =                    oct,
+  publisher =                {International Open Search Symposium},
+  site =                     {CERN, Geneva, Switzerland},
+  title =                    {{WARC-DL: Scalable Web Archive Processing for Deep Learning}},
+  year =                     2022
+}
+```
